@@ -409,6 +409,12 @@ def _connection_failure_reason(error_msg: str) -> Optional[str]:
     are not connection failures. This is what keeps a retired test model
     (see #970) from being misreported as a broken provider connection.
     """
+    # Provider request ids are opaque and can embed digit sequences that
+    # read as standalone HTTP statuses (e.g. Anthropic's req_011Cga403VtXy
+    # contains a bare "403", which _contains_http_status cannot distinguish
+    # from a real 403). Strip them before scanning so a random id is never
+    # misread as a permission failure on an otherwise-valid key.
+    error_msg = re.sub(r"req_[A-Za-z0-9]{8,}", "", error_msg)
     lower = error_msg.lower()
 
     if _contains_http_status(error_msg, 401) or "unauthorized" in lower:
