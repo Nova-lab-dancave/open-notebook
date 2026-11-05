@@ -4,6 +4,18 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* Mobile layout (#30): phones and narrow windows below `lg`, plus touch
+   tablets up to iPad Air / iPad Pro 11" landscape (iPad mini landscape is
+   1133px). No sidebar; the bottom menu bar takes its place. */
+@custom-variant mobile {
+  @media (max-width: 1023.98px) {
+    @slot;
+  }
+  @media (pointer: coarse) and (max-width: 1199.98px) {
+    @slot;
+  }
+}
+
 /* ============================================================================
    OPEN NOTEBOOK — DESIGN FOUNDATION ("Quiet Green")
 
@@ -133,6 +145,7 @@
 }
 
 :root {
+  --mobile-bar-height: 4rem;
   /* --------------------------------------------------------------
      core palette — the owned hues, red-free
      -------------------------------------------------------------- */

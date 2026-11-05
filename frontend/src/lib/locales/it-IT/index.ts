@@ -217,6 +217,12 @@ export const itIT = {
     theme: "Tema",
     ask: "Chiedi",
   },
+  mobileNav: {
+    label: "Menu principale",
+    openMenu: "Apri menu",
+    startMeeting: "Avvia trascrizione della riunione",
+    meetingComingSoon: "La trascrizione delle riunioni arriverà presto",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -217,6 +217,12 @@ export const bnIN = {
     theme: "থিম",
     ask: "জিজ্ঞাসা",
   },
+  mobileNav: {
+    label: "প্রধান মেনু",
+    openMenu: "মেনু খুলুন",
+    startMeeting: "মিটিং ট্রান্সক্রিপশন শুরু করুন",
+    meetingComingSoon: "মিটিং ট্রান্সক্রিপশন শীঘ্রই আসছে",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

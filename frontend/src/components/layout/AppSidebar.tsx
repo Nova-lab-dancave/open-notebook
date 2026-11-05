@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
-import { useCreateDialogs } from '@/lib/hooks/use-create-dialogs'
 import {
   Tooltip,
   TooltipContent,
@@ -18,74 +17,16 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LanguageToggle } from '@/components/common/LanguageToggle'
-import type { TFunction } from 'i18next'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { Separator } from '@/components/ui/separator'
 import { SidebarSections } from './SidebarSections'
-import {
-  Book,
-  Search,
-  Mic,
-  Bot,
-  Shuffle,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  Menu,
-  FileText,
-  Plus,
-  Wrench,
-  Command,
-} from 'lucide-react'
-
-const getNavigation = (t: TFunction) => [
-  {
-    title: t('navigation.collect'),
-    items: [
-      { name: t('navigation.sources'), href: '/sources', icon: FileText, iconClass: 'text-sage' },
-    ],
-  },
-  {
-    title: t('navigation.process'),
-    items: [
-      { name: t('navigation.notebooks'), href: '/notebooks', icon: Book, iconClass: 'text-teal' },
-      { name: t('navigation.askAndSearch'), href: '/search', icon: Search, iconClass: undefined },
-    ],
-  },
-  {
-    title: t('navigation.create'),
-    items: [
-      { name: t('navigation.podcasts'), href: '/podcasts', icon: Mic, iconClass: 'text-mauve' },
-    ],
-  },
-  {
-    title: t('navigation.manage'),
-    items: [
-      { name: t('navigation.models'), href: '/settings/models', icon: Bot, iconClass: undefined },
-      { name: t('navigation.transformations'), href: '/transformations', icon: Shuffle, iconClass: undefined },
-      { name: t('navigation.settings'), href: '/settings', icon: Settings, iconClass: undefined },
-      { name: t('navigation.advanced'), href: '/advanced', icon: Wrench, iconClass: undefined },
-    ],
-  },
-] as const
-
-// The tri-hue mark recomposed in the owned palette: fern / gold / teal.
-function LogoPebbles({ className }: { className?: string }) {
-  return (
-    <span className={cn('flex items-center gap-[3px]', className)} aria-hidden="true">
-      <span className="size-[9px] rounded-[3px] bg-fern" />
-      <span className="size-[9px] rounded-[3px] bg-gold" />
-      <span className="size-[9px] rounded-[3px] bg-teal" />
-    </span>
-  )
-}
-
-type CreateTarget = 'source' | 'notebook' | 'podcast'
+import { CreateMenuItems } from './CreateMenuItems'
+import { getActiveHref, getNavigation, LogoPebbles } from './navigation'
+import { LogOut, ChevronLeft, Menu, Plus, Command } from 'lucide-react'
 
 export function AppSidebar() {
   const { t } = useTranslation()
@@ -93,16 +34,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
-  const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
-
-  // The active item is the longest href that prefixes the current path.
-  // Longest-wins keeps `/settings` from also highlighting on `/settings/models`
-  // (the Models page is a URL child of the Settings page but a distinct item).
-  const activeHref = navigation
-    .map((section) => section.items)
-    .flat()
-    .filter((item) => pathname === item.href || pathname?.startsWith(`${item.href}/`))
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href
+  const activeHref = getActiveHref(navigation, pathname)
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [isMac, setIsMac] = useState(true) // Default to Mac for SSR
@@ -112,23 +44,11 @@ export function AppSidebar() {
     setIsMac(navigator.platform.toLowerCase().includes('mac'))
   }, [])
 
-  const handleCreateSelection = (target: CreateTarget) => {
-    setCreateMenuOpen(false)
-
-    if (target === 'source') {
-      openSourceDialog()
-    } else if (target === 'notebook') {
-      openNotebookDialog()
-    } else if (target === 'podcast') {
-      openPodcastDialog()
-    }
-  }
-
   return (
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          'app-sidebar flex h-full flex-col bg-sidebar border-sidebar-border border-r transition-all duration-300',
+          'app-sidebar mobile:hidden flex h-full flex-col bg-sidebar border-sidebar-border border-r transition-all duration-300',
           isCollapsed ? 'w-16' : 'w-64'
         )}
       >
@@ -220,36 +140,7 @@ export function AppSidebar() {
                 side={isCollapsed ? 'right' : 'bottom'}
                 className="w-48"
               >
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    handleCreateSelection('source')
-                  }}
-                  className="gap-2"
-                >
-                   <FileText className="h-4 w-4" />
-                  {t('common.source')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    handleCreateSelection('notebook')
-                  }}
-                  className="gap-2"
-                >
-                   <Book className="h-4 w-4" />
-                  {t('common.notebook')}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    handleCreateSelection('podcast')
-                  }}
-                  className="gap-2"
-                >
-                   <Mic className="h-4 w-4" />
-                  {t('common.podcast')}
-                </DropdownMenuItem>
+                <CreateMenuItems onSelected={() => setCreateMenuOpen(false)} />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

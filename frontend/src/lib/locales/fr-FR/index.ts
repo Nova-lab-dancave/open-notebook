@@ -217,6 +217,12 @@ export const frFR = {
     theme: "Thème",
     ask: "Demander",
   },
+  mobileNav: {
+    label: "Menu principal",
+    openMenu: "Ouvrir le menu",
+    startMeeting: "Démarrer la transcription de réunion",
+    meetingComingSoon: "La transcription de réunion arrive bientôt",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -217,6 +217,12 @@ export const trTR = {
     theme: "Tema",
     ask: "Sor",
   },
+  mobileNav: {
+    label: "Ana menü",
+    openMenu: "Menüyü aç",
+    startMeeting: "Toplantı dökümünü başlat",
+    meetingComingSoon: "Toplantı dökümü yakında geliyor",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",
