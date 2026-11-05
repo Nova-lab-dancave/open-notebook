@@ -3,10 +3,12 @@
 import { useMemo, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-locale'
-import { InfoIcon, RefreshCcw, Trash2 } from 'lucide-react'
+import { Download, InfoIcon, Loader2, RefreshCcw, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { EpisodePlayButton } from '@/components/player/EpisodePlayButton'
 import { EpisodeProgress } from '@/components/podcasts/EpisodeProgress'
+import { downloadEpisodeAudio } from '@/lib/api/podcasts'
 import { EpisodeStatus, FAILED_EPISODE_STATUSES, PodcastEpisode } from '@/lib/types/podcasts'
 import { cn } from '@/lib/utils'
 import {
@@ -156,6 +158,7 @@ function extractTranscriptEntries(transcript: unknown): TranscriptEntry[] {
 export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: EpisodeCardProps) {
   const { t, language } = useTranslation()
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const playerEpisode = useMemo(
     () => ({
       id: episode.id,
@@ -186,6 +189,18 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
     void onDelete(episode.id)
   }
 
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      await downloadEpisodeAudio(episode)
+    } catch (error) {
+      console.error('Unable to download podcast audio', error)
+      toast.error(t('podcasts.downloadFailed'))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   const handleRetry = () => {
     if (onRetry) {
       void onRetry(episode.id)
@@ -214,7 +229,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
               {createdLabel ? ` • ${createdLabel}` : ''}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -366,6 +381,21 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
                 </div>
               </DialogContent>
             </Dialog>
+            {hasAudio ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleDownload()}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {downloading ? t('podcasts.downloading') : t('common.download')}
+              </Button>
+            ) : null}
             {isFailed && onRetry ? (
               <Button
                 variant="outline"

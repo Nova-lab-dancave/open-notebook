@@ -31,6 +31,45 @@ export async function resolvePodcastAssetUrl(path?: string | null): Promise<stri
   return `${base}/${path}`
 }
 
+/** File name for a downloaded episode: the episode name, made filesystem-safe. */
+export function episodeDownloadFilename(name: string | null | undefined, sourcePath?: string | null): string {
+  const extMatch = sourcePath?.split('?')[0].match(/\.([a-z0-9]{2,5})$/i)
+  const ext = extMatch ? extMatch[1].toLowerCase() : 'mp3'
+  const base = (name ?? '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+  return `${base || 'podcast-episode'}.${ext}`
+}
+
+/**
+ * Saves an episode's audio to the browser's downloads folder. The audio
+ * endpoint is protected, so it is fetched through apiClient (auth header)
+ * and handed to the browser as a blob.
+ */
+export async function downloadEpisodeAudio(
+  episode: Pick<PodcastEpisode, 'name' | 'audio_url' | 'audio_file'>
+): Promise<void> {
+  const url = await resolvePodcastAssetUrl(episode.audio_url ?? episode.audio_file)
+  if (!url) {
+    throw new Error('Episode has no audio')
+  }
+  const response = await apiClient.get<Blob>(url, { responseType: 'blob' })
+  const blobUrl = URL.createObjectURL(response.data)
+  try {
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = episodeDownloadFilename(episode.name, episode.audio_file)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } finally {
+    // Give the browser a moment to start the download before revoking.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+  }
+}
+
 export const podcastsApi = {
   listEpisodes: async (params?: { notebook_id?: string }) => {
     const response = await apiClient.get<PodcastEpisode[]>('/podcasts/episodes', {
