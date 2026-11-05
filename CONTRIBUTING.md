@@ -8,7 +8,7 @@ Nova-Notes is a fork of [lfnovo/open-notebook](https://github.com/lfnovo/open-no
 2. **Branch from `main`**: `<your-github-name>/<short-topic>`, e.g. `adrian/podcast-chapters`. Never push to `main`; it is protected.
 3. **Commit with [Conventional Commits](https://www.conventionalcommits.org/)**: `feat(podcasts): …`, `fix(notes): …`, `docs: …`. The PR title uses the same format.
 4. **Open a PR against `heli-konton/open-notebook` `main`.** Not against lfnovo: `gh pr create` picks the upstream repo by default in a fork, so run `gh repo set-default heli-konton/open-notebook` once in your clone (or pass `--repo heli-konton/open-notebook`).
-5. **CI must pass and one code owner must approve** (see [.github/CODEOWNERS](.github/CODEOWNERS)). PRs are squash-merged and the branch is deleted.
+5. **CI must pass and one code owner must approve** (see [.github/CODEOWNERS](.github/CODEOWNERS)). Feature PRs are squash-merged and the branch is deleted. The one exception is upstream-sync PRs (merging lfnovo into the fork): the maintainer merges those with a merge commit, so git keeps the upstream history and the next sync doesn't re-conflict.
 
 ## What happens after a merge
 
@@ -47,7 +47,7 @@ Never add files numbered below 100: those belong to upstream and arrive when we 
 
 ## Syncing with upstream
 
-The maintainer merges `lfnovo/open-notebook` `main` into this fork periodically (`git fetch upstream && git merge upstream/main` on a branch, then a normal PR). Don't send fork features to lfnovo from this repo. If something is worth upstreaming, raise it with the maintainer first.
+This fork is maintained independently: the in-app "update available" notice follows this repo, not lfnovo. Every Monday the `upstream-watch` workflow opens an Issue when lfnovo publishes a newer release. The maintainer reviews it and merges `lfnovo/open-notebook` `main` into the fork on a branch (`git fetch upstream --tags && git merge upstream/main`, then a normal PR); security releases go first. Don't send fork features to lfnovo from this repo. If something is worth upstreaming, raise it with the maintainer first.
 
 ## Security
 
