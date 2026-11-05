@@ -1,0 +1,46 @@
+name: Upstream release watch
+
+# Nova-Notes maintains its own fork. Once a week, open an Issue when upstream
+# lfnovo/open-notebook publishes a release newer than our pyproject version, so
+# a maintainer can review and merge it (security fixes first). Opens nothing
+# if an Issue for that release already exists.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Compare upstream release with ours
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          ours=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          tag=$(gh release view --repo lfnovo/open-notebook --json tagName -q .tagName)
+          latest=${tag#v}
+          echo "ours=$ours upstream=$latest"
+          newest=$(printf '%s\n%s\n' "$ours" "$latest" | sort -V | tail -1)
+          if [ "$latest" = "$ours" ] || [ "$newest" = "$ours" ]; then
+            echo "Up to date with upstream."; exit 0
+          fi
+          title="Upstream $tag available"
+          if gh issue list --repo "$REPO" --state all --search "\"$title\" in:title" --json number -q '.[].number' | grep -q .; then
+            echo "Issue already exists."; exit 0
+          fi
+          {
+            echo "Upstream lfnovo/open-notebook released **$tag** (we are on $ours)."
+            echo
+            echo "Release notes: https://github.com/lfnovo/open-notebook/releases/tag/$tag"
+            echo
+            echo "To adopt: on a branch run \`git fetch upstream --tags && git merge upstream/main\`, keep fork entries under Unreleased in CHANGELOG with upstream's release section verbatim, run \`uv lock\` and the full checks, then open a PR. Check that new upstream migrations stay below 100 and that removed endpoints aren't used by fork features."
+          } > body.md
+          gh issue create --repo "$REPO" --title "$title" --body-file body.md

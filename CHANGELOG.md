@@ -18,11 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Discover notebook.** Two buttons on the notebooks page turn a topic into a new notebook with about 10 web sources chosen for a balanced mix of viewpoints (keyless DuckDuckGo search via `ddgs`), optionally followed by a podcast with the episode profile you pick. New endpoint `POST /api/notebooks/discover`
 
 ### Changed
+- **Nova-Notes maintains its own updates.** The "update available" notice now compares against this fork's `main` instead of upstream lfnovo, so it only appears once an upstream release has been reviewed and merged here; its link and the project links open the fork. A weekly workflow (`upstream-watch.yml`) opens an Issue when upstream publishes a newer release. Image tags follow the pyproject version (`v1.15.1-nova.<run>`)
 - **Fork migrations have their own track.** Nova-Notes schema migrations are now numbered from 100 and recorded in `_nova_migrations`, separate from upstream's `_sbl_migrations`, so upstream can add migrations without clashing. Former fork migrations 26-29 are now 100-103 (same SQL). Existing databases are handed over automatically on first start, in one transaction, without re-running anything. Rolling back to an older image needs a backup restore (ADR-014)
 - Contributor docs, PR and issue templates, and `CODEOWNERS` now describe this fork's workflow instead of upstream's
 - **Renamed to Nova-Notes** in the web UI: sidebar, login screen, browser tab, media-player metadata and interface text
 - **Recently Viewed starts collapsed** on the notebooks page
 - **Liquid-glass look.** Panels, cards, menus, dialogs, the sidebar and the mini-player are now frosted translucent glass (backdrop blur, soft top highlight) over a subtle ambient colour glow, with much rounder corners (8/12/16/22 px) and softer, deeper shadows. Colours and icons are unchanged. Falls back to opaque surfaces under `prefers-reduced-transparency` or without `backdrop-filter`. The notebooks page header actions wrap instead of overflowing, and the mini-player floats as a rounded dock
+
+### Fixed
+- **Podcasts survive an intermittent provider refusal.** Anthropic can refuse a long outline or transcript request (`stop_reason: refusal`) with no content, which used to surface as a bare "Invalid json output". The call is now retried (`PODCAST_REFUSAL_RETRIES`, default 2), then sent to `PODCAST_REFUSAL_FALLBACK_MODEL` if set, and otherwise fails with a message that names the refusal
+- The notebook chat box shows its whole two-line placeholder instead of clipping the second line
+- **Provider request ids can no longer be misread as HTTP errors.** The connection-test classifier scans error strings for standalone 401/403 status codes; random provider request ids (e.g. Anthropic's `req_011Cga403VtX…`) sometimes embed those digits, which made a valid key report "API key lacks required permissions" when the (retired) test model returned a 404. Request ids are now stripped from the error string before classification — a genuine 403 still fails the test
+
+## [1.15.1] - 2026-11-03
+
+### Changed
 - **Documentation rewritten against the code.** Every page under `docs/` was checked against v1.15.0 and rewritten where it described an older or imagined product (#1458, #1459, #1460, #1461):
   - **Install:** one canonical path built on the shipped `docker-compose.yml`, with small override files for the Ollama and LM Studio variants. The network-exposure warning (bind ports to `127.0.0.1` or set a password) comes before the first `docker compose up -d`. Example encryption keys are generated, never copied. First-run setup lives in one place, [Connect a provider](docs/4-AI-PROVIDERS/index.md#connect-a-provider), and ends in a working chat via **Auto-assign Defaults**. The provider table is built from the provider registry: 24 providers, with the model types each one offers
   - **User guide and concepts:** insights are a first-class concept and the context mode is *Insights only*. Ask is described as three stages. UI labels match the current app. Invented features are gone (tags, export/share, batch transformations, page-number citations and others). About 6,200 lines became about 1,450
@@ -30,9 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Development:** `architecture.md`, `testing.md`, `api-reference.md` and `code-standards.md` are rewritten from the code. A new playbook covers adding an AI provider. Dev setup lives on one page. The AGENTS files agree with the docs. Contributor conventions (Conventional Commits, CHANGELOG sections, pre-PR checks that match CI) are documented
 
 ### Fixed
-- **Podcasts survive an intermittent provider refusal.** Anthropic can refuse a long outline or transcript request (`stop_reason: refusal`) with no content, which used to surface as a bare "Invalid json output". The call is now retried (`PODCAST_REFUSAL_RETRIES`, default 2), then sent to `PODCAST_REFUSAL_FALLBACK_MODEL` if set, and otherwise fails with a message that names the refusal
-- The notebook chat box shows its whole two-line placeholder instead of clipping the second line
-- **Provider request ids can no longer be misread as HTTP errors.** The connection-test classifier scans error strings for standalone 401/403 status codes; random provider request ids (e.g. Anthropic's `req_011Cga403VtX…`) sometimes embed those digits, which made a valid key report "API key lacks required permissions" when the (retired) test model returned a 404. Request ids are now stripped from the error string before classification — a genuine 403 still fails the test
 - **Docs no longer recommend settings that do nothing.** `API_CLIENT_TIMEOUT` was never read by Open Notebook; the timeout guidance now covers what actually applies: `ESPERANTO_LLM_TIMEOUT` per model call (keep it below 600) and the web UI's 10-minute request limit (`NEXT_PUBLIC_API_TIMEOUT_MS`, build time only). Remaining `SURREAL_COMMANDS_MAX_TASKS` advice now uses `OPEN_NOTEBOOK_WORKER_MAX_TASKS`. Docker instructions no longer say to edit `.env` and `docker compose restart`: the shipped compose file doesn't load `.env` into the container and `restart` doesn't reload environment changes, so they now point to the `open_notebook` service's `environment:` block and `docker compose up -d`
 - **Timeouts no longer read as connection failures.** A model that doesn't answer within `ESPERANTO_LLM_TIMEOUT` used to report "Could not connect to the AI provider"; it now says the provider took too long and how to raise the limit. Connection failures (including connect timeouts) keep the old message
 - Error hints point to screens that exist: an authentication failure sends you to Manage → Models (not "Settings → Credentials"), and an unsupported podcast voice to Podcasts → Profiles. The empty Podcasts page points to the Generate Podcast button instead of chat screens that can't start a podcast
@@ -40,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make start-all` starts SurrealDB again (it pointed to a compose file removed long ago)
 - The legacy `SURREAL_ADDRESS` / `SURREAL_PORT` fallback builds a valid database URL (`ws://host:port/rpc`, was `ws://host/rpc:port`); an address that already includes the port is kept as is
 - `.env.example` names the chunking variables Open Notebook actually reads (`OPEN_NOTEBOOK_CHUNK_SIZE` / `OPEN_NOTEBOOK_CHUNK_OVERLAP`)
+
+### Removed
+- `POST /api/commands/jobs`, the generic "submit any background command" endpoint. Nothing in Open Notebook used it; every operation has its own endpoint. Job status (`GET /api/commands/jobs/{job_id}`) is unchanged.
+
+### Security
+- Source processing now enforces the uploads-directory and URL checks in the background worker itself, so they apply on every path that processes a source, not only when a source is created.
+- Requires `content-core` 2.2.1 or later, which refuses link-local and cloud-metadata addresses on every redirect hop when fetching URLs.
 
 ## [1.15.0] - 2026-10-04
 

@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Image tag to publish (default: v1.15.0-nova.<run number>)'
+        description: 'Image tag to publish (default: v<pyproject version>-nova.<run number>)'
         required: false
         type: string
 
@@ -30,7 +30,6 @@ permissions:
 
 env:
   TARGET_IMAGE: ghcr.io/heli-konton/open-notebook
-  IMAGE_TAG: ${{ inputs.tag || format('v1.15.0-nova.{0}', github.run_number) }}
 
 jobs:
   build-smoke-publish:
@@ -38,6 +37,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Image tag from pyproject version
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          version=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          echo "IMAGE_TAG=${INPUT_TAG:-v${version}-nova.${RUN_NUMBER}}" >> "$GITHUB_ENV"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4

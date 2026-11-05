@@ -27,6 +27,12 @@ _version_cache: dict = {
 VERSION_CACHE_TTL = 24 * 60 * 60
 
 
+# Nova-Notes is maintained as its own fork: "update available" means the fork's
+# main has moved past the running version (e.g. after we merge an upstream
+# release), not that upstream lfnovo has published something we haven't vetted.
+UPDATE_SOURCE_REPO = "https://github.com/heli-konton/open-notebook"
+
+
 def get_version() -> str:
     """Read version from pyproject.toml"""
     try:
@@ -65,9 +71,7 @@ async def get_latest_version_cached(current_version: str) -> tuple[Optional[str]
         logger.info("Checking for latest version from GitHub...")
 
         # Fetch latest version from GitHub with 10-second timeout
-        latest_version = await get_version_from_github_async(
-            "https://github.com/lfnovo/open-notebook", "main"
-        )
+        latest_version = await get_version_from_github_async(UPDATE_SOURCE_REPO, "main")
 
         logger.info(
             f"Latest version from GitHub: {latest_version}, Current version: {current_version}"

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { getConfig } from '@/lib/config'
 import { useTranslation } from '@/lib/hooks/use-translation'
+import { NOVA_REPO_URL } from '@/lib/repo'
 
 /**
  * Hook to check for version updates and display notification.
@@ -32,7 +33,7 @@ export function useVersionCheck() {
           closeButton: true,
           action: {
             label: t('advanced.viewOnGithub'),
-            onClick: () => window.open('https://github.com/lfnovo/open-notebook', '_blank', 'noopener,noreferrer'),
+            onClick: () => window.open(`${NOVA_REPO_URL}/blob/main/CHANGELOG.md`, '_blank', 'noopener,noreferrer'),
           },
           onDismiss: () => sessionStorage.setItem(dismissKey, 'true'),
         })
