@@ -217,6 +217,12 @@ export const zhTW = {
     theme: "主題",
     ask: "提問",
   },
+  mobileNav: {
+    label: "主選單",
+    openMenu: "開啟選單",
+    startMeeting: "開始會議逐字稿",
+    meetingComingSoon: "會議逐字稿即將推出",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -217,6 +217,12 @@ export const ptBR = {
     theme: "Tema",
     ask: "Perguntar",
   },
+  mobileNav: {
+    label: "Menu principal",
+    openMenu: "Abrir menu",
+    startMeeting: "Iniciar transcrição da reunião",
+    meetingComingSoon: "A transcrição de reuniões chegará em breve",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

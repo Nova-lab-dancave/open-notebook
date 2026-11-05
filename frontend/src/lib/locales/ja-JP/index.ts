@@ -217,6 +217,12 @@ export const jaJP = {
     theme: "テーマ",
     ask: "質問",
   },
+  mobileNav: {
+    label: "メインメニュー",
+    openMenu: "メニューを開く",
+    startMeeting: "会議の文字起こしを開始",
+    meetingComingSoon: "会議の文字起こしは近日公開予定です",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -220,6 +220,12 @@ export const deDE = {
     theme: "Design",
     ask: "Fragen",
   },
+  mobileNav: {
+    label: "Hauptmenü",
+    openMenu: "Menü öffnen",
+    startMeeting: "Besprechungstranskription starten",
+    meetingComingSoon: "Besprechungstranskription folgt in Kürze",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

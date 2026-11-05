@@ -215,6 +215,12 @@ export const enUS = {
     theme: "Theme",
     ask: "Ask",
   },
+  mobileNav: {
+    label: "Main menu",
+    openMenu: "Open menu",
+    startMeeting: "Start meeting transcription",
+    meetingComingSoon: "Meeting transcription is coming soon",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -217,6 +217,12 @@ export const esES = {
     theme: "Tema",
     ask: "Preguntar",
   },
+  mobileNav: {
+    label: "Menú principal",
+    openMenu: "Abrir menú",
+    startMeeting: "Iniciar transcripción de reunión",
+    meetingComingSoon: "La transcripción de reuniones llegará pronto",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

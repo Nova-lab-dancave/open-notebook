@@ -217,6 +217,12 @@ export const plPL = {
     theme: "Motyw",
     ask: "Pytaj",
   },
+  mobileNav: {
+    label: "Menu główne",
+    openMenu: "Otwórz menu",
+    startMeeting: "Rozpocznij transkrypcję spotkania",
+    meetingComingSoon: "Transkrypcja spotkań już wkrótce",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

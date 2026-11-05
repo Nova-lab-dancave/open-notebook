@@ -122,7 +122,7 @@ export function GlobalAudioPlayer() {
     <div
       role="region"
       aria-label={PLAYER_LABELS.player}
-      className="glass-dock fixed inset-x-3 bottom-3 z-50 mx-auto flex h-16 max-w-3xl items-center gap-2 rounded-2xl px-4 sm:gap-3"
+      className="glass-dock fixed inset-x-3 bottom-3 mobile:bottom-[calc(var(--mobile-bar-height)+env(safe-area-inset-bottom)+0.75rem)] z-50 mx-auto flex h-16 max-w-3xl items-center gap-2 rounded-2xl px-4 sm:gap-3"
       data-testid="mini-player"
     >
       <audio

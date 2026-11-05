@@ -217,6 +217,12 @@ export const ruRU = {
     theme: "Тема",
     ask: "Запрос",
   },
+  mobileNav: {
+    label: "Главное меню",
+    openMenu: "Открыть меню",
+    startMeeting: "Начать расшифровку встречи",
+    meetingComingSoon: "Расшифровка встреч скоро появится",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Bricolage_Grotesque,
   Instrument_Sans,
@@ -33,6 +33,14 @@ const splineSansMono = Spline_Sans_Mono({
 export const metadata: Metadata = {
   title: "Nova-Notes",
   description: "Privacy-focused research and knowledge management",
+};
+
+// viewport-fit=cover lets env(safe-area-inset-*) report the iPhone home
+// indicator and notch, which the mobile bottom bar pads for.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

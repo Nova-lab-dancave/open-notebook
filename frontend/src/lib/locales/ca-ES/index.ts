@@ -217,6 +217,12 @@ export const caES = {
     theme: "Tema",
     ask: "Pregunta",
   },
+  mobileNav: {
+    label: "Menú principal",
+    openMenu: "Obre el menú",
+    startMeeting: "Inicia la transcripció de la reunió",
+    meetingComingSoon: "La transcripció de reunions arribarà aviat",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",

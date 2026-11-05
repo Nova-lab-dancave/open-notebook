@@ -217,6 +217,12 @@ export const zhCN = {
     theme: "主题",
     ask: "提问",
   },
+  mobileNav: {
+    label: "主菜单",
+    openMenu: "打开菜单",
+    startMeeting: "开始会议转录",
+    meetingComingSoon: "会议转录即将推出",
+  },
   folders: {
     title: "Folders",
     newFolder: "New folder",
