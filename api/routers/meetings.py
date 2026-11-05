@@ -234,7 +234,9 @@ async def edit_meeting(notebook_id: str, meeting_id: str, data: EditMeeting):
         raise InvalidInputError("Finish recording before editing")
     if data.revision != meeting.revision:
         raise InvalidInputError("Meeting changed; reload it before saving your edits")
-    edited = meeting.model_copy(update=data.model_dump())
+    # Keep the validated MeetingAction objects: a model_dump() would turn them
+    # into plain dicts that model_copy does not convert back.
+    edited = meeting.model_copy(update=dict(data))
     # A transaction keeps approved action checkboxes and the searchable note
     # consistent. Editing invalidates any in-flight generated summary.
     await repo_query(

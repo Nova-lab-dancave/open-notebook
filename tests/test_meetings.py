@@ -284,3 +284,40 @@ async def test_stale_editor_does_not_overwrite_newer_meeting():
                 ),
             )
         query.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_edit_with_actions_renders_the_note_content():
+    """Saving a reviewed meeting that has actions must not crash.
+
+    Regression: model_copy(update=model_dump()) left the actions as plain
+    dicts, so building the note content raised AttributeError (HTTP 500) for
+    every meeting the summary had produced actions for.
+    """
+    current = draft(status="approved", revision=2, transcript="Words", note_id="note:a")
+    action = {
+        "text": "Send budget",
+        "owner": "Priya",
+        "due": "Friday",
+        "evidence": "Priya will send it",
+        "done": True,
+    }
+    with (
+        patch.object(meetings, "get_meeting", AsyncMock(return_value=current)),
+        patch.object(meetings, "repo_query", AsyncMock()) as query,
+        patch("surreal_commands.submit_command", return_value="command:test"),
+    ):
+        await meetings.edit_meeting(
+            "notebook:test",
+            "meeting:test",
+            meetings.EditMeeting(
+                revision=2,
+                title="Reviewed",
+                summary="Plan agreed",
+                actions=[action],
+                transcript="Words",
+            ),
+        )
+    content = query.await_args_list[0].args[1]["content"]
+    assert "- [x] Send budget — Priya — Friday" in content
+    assert "Evidence: Priya will send it" in content
