@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Discover notebook.** Two buttons on the notebooks page turn a topic into a new notebook with about 10 web sources chosen for a balanced mix of viewpoints (keyless DuckDuckGo search via `ddgs`), optionally followed by a podcast with the episode profile you pick. New endpoint `POST /api/notebooks/discover`
 
 ### Changed
+- **Fork migrations have their own track.** Nova-Notes schema migrations are now numbered from 100 and recorded in `_nova_migrations`, separate from upstream's `_sbl_migrations`, so upstream can add migrations without clashing. Former fork migrations 26-29 are now 100-103 (same SQL). Existing databases are handed over automatically on first start, in one transaction, without re-running anything. Rolling back to an older image needs a backup restore (ADR-014)
+- Contributor docs, PR and issue templates, and `CODEOWNERS` now describe this fork's workflow instead of upstream's
 - **Renamed to Nova-Notes** in the web UI: sidebar, login screen, browser tab, media-player metadata and interface text
 - **Recently Viewed starts collapsed** on the notebooks page
 - **Liquid-glass look.** Panels, cards, menus, dialogs, the sidebar and the mini-player are now frosted translucent glass (backdrop blur, soft top highlight) over a subtle ambient colour glow, with much rounder corners (8/12/16/22 px) and softer, deeper shadows. Colours and icons are unchanged. Falls back to opaque surfaces under `prefers-reduced-transparency` or without `backdrop-filter`. The notebooks page header actions wrap instead of overflowing, and the mini-player floats as a rounded dock

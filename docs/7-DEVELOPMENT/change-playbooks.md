@@ -110,12 +110,12 @@ Providers that need several config fields (like `azure`, `vertex`, `openai_compa
 
 | Step | File(s) | What to do |
 |------|---------|------------|
-| 1 | `open_notebook/database/migrations/N.surrealql` + `N_down.surrealql` | SurrealQL for the change and its rollback. `N` is the next number. Copy patterns from recent migrations. |
-| 2 | `open_notebook/database/async_migrate.py` | Add both files to the lists in `AsyncMigrationManager.__init__`. Migrations are listed by hand, not discovered. |
+| 1 | `open_notebook/database/migrations/N.surrealql` + `N_down.surrealql` | SurrealQL for the change and its rollback. **In the Nova-Notes fork, `N` is the next fork number (100+)**, see [ADR-014](decisions/ADR-014-fork-migration-track.md). Copy patterns from recent migrations. |
+| 2 | `open_notebook/database/async_migrate.py` | Fork migration: append `N` to `NOVA_MIGRATION_NUMBERS`. Upstream migration (only arrives via an upstream sync): add both files to the lists in `AsyncMigrationManager.__init__`. Migrations are listed by hand, not discovered. |
 | 3 | Domain model and `api/models.py` | Match the new fields. |
 | 4 | Verify | Restart the API. Migrations run on startup; the log shows `Running migration N` and `Migrations completed successfully. Database is now at version N`. |
 
-- Applied versions are recorded in the `_sbl_migrations` table and never re-run.
+- Applied versions are recorded in `_sbl_migrations` (upstream) and `_nova_migrations` (fork, 100+) and never re-run.
 - One migration per PR that needs one, numbered in merge order. Never consolidate migrations after one lands on `main`: dev images apply it immediately ([ADR-006](decisions/ADR-006-migration-granularity.md)).
 - Test against a database with existing data, not only an empty one.
 

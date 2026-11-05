@@ -47,7 +47,7 @@ Normative rules for working on the Python backend. Architecture and design ratio
 
 ## Database (`open_notebook/database/`)
 
-- New migration = new file `open_notebook/database/migrations/N.surrealql` (+ `N_down.surrealql`) **and** an edit to `AsyncMigrationManager` — migrations are hard-coded, not auto-discovered. They run automatically on API startup.
+- New migration = new file `open_notebook/database/migrations/N.surrealql` (+ `N_down.surrealql`) **and** registration in `async_migrate.py` — migrations are hard-coded, not auto-discovered. They run automatically on API startup. **Nova-Notes fork:** fork migrations are numbered 100+ and registered in `NOVA_MIGRATION_NUMBERS` (own track, `_nova_migrations`); never add numbers below 100 ([ADR-014](../docs/7-DEVELOPMENT/decisions/ADR-014-fork-migration-track.md)).
 - No connection pooling — each `repo_*` call opens/closes a connection.
 - Transaction-conflict `RuntimeError`s are retriable and logged at DEBUG (don't "fix" the missing stack trace).
 - Bind values as `$params`, never f-string user input into SurrealQL ([security.md](../docs/7-DEVELOPMENT/security.md#database-queries-surrealql-injection)); see the [SurrealQL docs](https://surrealdb.com/docs/surrealql) for syntax.

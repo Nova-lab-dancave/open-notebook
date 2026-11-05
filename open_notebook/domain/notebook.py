@@ -749,7 +749,7 @@ class Note(ObjectModel):
     title: Optional[str] = None
     note_type: Optional[Literal["human", "ai"]] = None
     content: Optional[str] = None
-    # Set when the note was created from a dropped file (see migration 29).
+    # Set when the note was created from a dropped file (see Nova-Notes migration 103).
     attachment_name: Optional[str] = None
     attachment_file: Optional[str] = None
     attachment_mime: Optional[str] = None

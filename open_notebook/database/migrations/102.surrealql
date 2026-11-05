@@ -1,4 +1,4 @@
--- Migration 28: sections.
+-- Nova-Notes migration 102 (numbered 28 before the fork track split): sections.
 -- A `section` is a top-level group of folders (section > folder > notebook).
 -- `folder.section` is NONE for folders that sit outside any section. Names are
 -- NOT unique in the database (the API enforces case-insensitive uniqueness);

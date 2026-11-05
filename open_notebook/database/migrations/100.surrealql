@@ -1,4 +1,4 @@
--- Migration 26: link podcast episodes to a notebook and track generation progress.
+-- Nova-Notes migration 100 (numbered 26 before the fork track split): link podcast episodes to a notebook and track generation progress.
 -- `notebook` is the notebook the episode was generated from (NONE for episodes
 -- created without one); `progress` is the 0-100 generation progress.
 DEFINE FIELD IF NOT EXISTS notebook ON TABLE episode TYPE option<record<notebook>>;
