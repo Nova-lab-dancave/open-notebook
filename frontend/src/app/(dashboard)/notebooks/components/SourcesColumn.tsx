@@ -156,9 +156,9 @@ export function SourcesColumn({
         collapsedIcon={FileText}
         collapsedLabel={t('navigation.sources')}
       >
-        <Card className="h-full flex flex-col flex-1 overflow-hidden">
+        <Card className="@container h-full flex flex-col flex-1 overflow-hidden">
           <CardHeader className="pb-3 flex-shrink-0">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground">
                 <span aria-hidden className="h-3.5 w-[3px] rounded-full bg-sage" />
                 {t('navigation.sources')}
@@ -187,10 +187,12 @@ export function SourcesColumn({
                 )}
                 <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t('sources.addSource')}
-                      <ChevronDown className="h-4 w-4 ml-2" />
+                    {/* The column is narrow (a sixth of the page), so the label only
+                        shows once the card is wide enough for it. */}
+                    <Button size="sm" title={t('sources.addSource')} aria-label={t('sources.addSource')}>
+                      <Plus className="h-4 w-4 @[19rem]:mr-2" />
+                      <span className="hidden @[19rem]:inline">{t('sources.addSource')}</span>
+                      <ChevronDown className="h-4 w-4 @[19rem]:ml-2" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

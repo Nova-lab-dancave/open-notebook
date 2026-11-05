@@ -13,37 +13,27 @@ import {
 import {
   Plus,
   StickyNote,
-  Bot,
-  User,
-  MoreVertical,
-  Trash2,
   ListChecks,
   ChevronDown,
   Paperclip,
-  FileText,
-  Download,
   Upload,
   Presentation,
 } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
-import { Badge } from '@/components/ui/badge'
 import { NoteEditorDialog } from './NoteEditorDialog'
 import { NoteFileViewer } from './NoteFileViewer'
 import { GenerateExplainerDialog } from './GenerateExplainerDialog'
 import { NotebookPodcasts } from './NotebookPodcasts'
-import { getDateLocale } from '@/lib/utils/date-locale'
-import { formatDistanceToNow } from 'date-fns'
-import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '../[id]/page'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote, useUploadNoteFile } from '@/lib/hooks/use-notes'
 import { useExplainerJobs, useGenerateExplainer } from '@/lib/hooks/use-explainers'
 import { ExplainerJobRow } from './ExplainerJobRow'
+import { NoteCard, NOTE_GRID_CLASS } from './NoteCard'
 import { useToast } from '@/lib/hooks/use-toast'
 import {
   NOTE_FILE_EXTENSIONS,
-  formatFileSize,
   isDraggingFiles,
   isSupportedNoteFile,
   saveNoteFile,
@@ -73,7 +63,7 @@ export function NotesColumn({
   onContextModeChange,
   onBulkContextModeChange
 }: NotesColumnProps) {
-  const { t, language } = useTranslation()
+  const { t } = useTranslation()
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<NoteResponse | undefined>()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -278,131 +268,35 @@ export function NotesColumn({
                 {t('noteFiles.adding', { count: uploading })}
               </div>
             )}
-            {explainerJobs.jobs.map((job) => (
-              <ExplainerJobRow key={job.job_id} job={job} onDismiss={explainerJobs.dismiss} />
-            ))}
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <LoadingSpinner />
               </div>
-            ) : !notes || notes.length === 0 ? (
+            ) : (!notes || notes.length === 0) && explainerJobs.jobs.length === 0 ? (
               <EmptyState
                 icon={StickyNote}
                 title={t('notebooks.noNotesYet')}
                 description={t('sources.createFirstNote') + ' ' + t('noteFiles.emptyHint')}
               />
             ) : (
-              <div className="space-y-2">
-                {notes.map((note) => (
-                  <div
+              // One grid, explainer jobs in progress first, then notes newest first
+              // (the API already returns notes by most recently updated).
+              <div className={NOTE_GRID_CLASS} data-testid="notes-grid">
+                {explainerJobs.jobs.map((job) => (
+                  <ExplainerJobRow key={job.job_id} job={job} onDismiss={explainerJobs.dismiss} />
+                ))}
+                {notes?.map((note) => (
+                  <NoteCard
                     key={note.id}
-                    className="p-3 border rounded-md bg-card shadow-none card-hover group relative cursor-pointer"
-                    onClick={() => (note.attachment ? setViewerNote(note) : handleOpenEditor(note))}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {note.attachment && note.explainer ? (
-                          <>
-                            <Presentation className="h-4 w-4 text-teal" />
-                            <Badge variant="secondary" className="text-xs">
-                              {t('explainer.badge')}
-                            </Badge>
-                          </>
-                        ) : note.attachment ? (
-                          <>
-                            <FileText className="h-4 w-4 text-sage" />
-                            <Badge variant="secondary" className="text-xs uppercase">
-                              {note.attachment.name.split('.').pop()}
-                            </Badge>
-                          </>
-                        ) : (
-                          <>
-                            {note.note_type === 'ai' ? (
-                              <Bot className="h-4 w-4 text-teal" />
-                            ) : (
-                              <User className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <Badge variant="secondary" className="text-xs">
-                              {note.note_type === 'ai' ? t('common.aiGenerated') : t('common.human')}
-                            </Badge>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDistanceToNow(new Date(note.updated), { 
-                            addSuffix: true,
-                            locale: getDateLocale(language)
-                          })}
-                        </span>
-
-                        {/* Context toggle - only show if handler provided */}
-                        {onContextModeChange && contextSelections?.[note.id] && (
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <ContextToggle
-                              mode={contextSelections[note.id]}
-                              hasInsights={false}
-                              onChange={(mode) => onContextModeChange(note.id, mode)}
-                            />
-                          </div>
-                        )}
-
-                        {/* Ellipsis menu for delete action */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            {note.attachment && !note.explainer && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  void handleDownloadFile(note)
-                                }}
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                {t('noteFiles.download')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteClick(note.id)
-                              }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t('notebooks.deleteNote')}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-
-                    {note.title && (
-                      <h4 className={`text-sm font-medium break-all ${note.attachment ? 'mb-1' : 'mb-2'}`}>
-                        {note.title}
-                      </h4>
-                    )}
-
-                    {note.attachment && (
-                      <p className="text-xs text-muted-foreground">{formatFileSize(note.attachment.size)}</p>
-                    )}
-
-                    {note.content && (
-                      <p className="text-sm text-muted-foreground line-clamp-3 break-all">
-                        {note.content}
-                      </p>
-                    )}
-                  </div>
+                    note={note}
+                    contextMode={contextSelections?.[note.id]}
+                    onContextModeChange={
+                      onContextModeChange ? (mode) => onContextModeChange(note.id, mode) : undefined
+                    }
+                    onOpen={(clicked) => (clicked.attachment ? setViewerNote(clicked) : handleOpenEditor(clicked))}
+                    onDelete={handleDeleteClick}
+                    onDownload={(clicked) => void handleDownloadFile(clicked)}
+                  />
                 ))}
               </div>
             )}

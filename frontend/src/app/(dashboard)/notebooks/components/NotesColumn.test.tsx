@@ -239,4 +239,26 @@ describe('NotesColumn', () => {
     fireEvent.click(screen.getByText('Tides explained'))
     expect(screen.getByTestId('file-viewer')).toHaveAttribute('data-note-id', 'note:exp')
   })
+
+  it('shows explainer jobs first, then notes, as square cards in one grid', () => {
+    jobsState.jobs = [
+      { job_id: 'command:a', status: 'running', requested_at: new Date().toISOString(), note_id: null, title: null, error_message: null },
+    ]
+    renderNotes([existingNote, { ...existingNote, id: 'note:2', title: 'Second note' }])
+    const grid = screen.getByTestId('notes-grid')
+    const cards = Array.from(grid.children)
+    expect(cards).toHaveLength(3)
+    expect(cards[0]).toHaveAttribute('data-testid', 'explainer-pending')
+    expect(cards[1]).toHaveTextContent('Existing note')
+    expect(cards[2]).toHaveTextContent('Second note')
+    for (const card of cards) expect(card.className).toContain('aspect-square')
+    expect(screen.queryByText('notebooks.noNotesYet')).toBeNull()
+    jobsState.jobs = []
+  })
+
+  it('shows the empty state only when there are no notes and no explainer jobs', () => {
+    renderNotes([])
+    expect(screen.getByText('notebooks.noNotesYet')).toBeInTheDocument()
+    expect(screen.queryByTestId('notes-grid')).toBeNull()
+  })
 })
