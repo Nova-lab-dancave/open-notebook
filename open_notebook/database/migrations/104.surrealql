@@ -1,0 +1,6 @@
+-- Nova-Notes migration 104: generated interactive explainers.
+-- An explainer is a note whose HTML attachment (migration 103) was written by the
+-- app's own generator. The flag lets the viewer run its scripts in a script-only
+-- sandbox with a no-network CSP (explainer sandbox ADR in docs/7-DEVELOPMENT/decisions); uploaded HTML stays fully locked.
+-- NONE for every other note.
+DEFINE FIELD IF NOT EXISTS explainer ON TABLE note TYPE option<bool>;

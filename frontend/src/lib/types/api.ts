@@ -69,6 +69,8 @@ export interface NoteResponse {
   created: string
   updated: string
   attachment?: NoteAttachment | null
+  /** True for a generated interactive HTML explainer (its scripts may run in the viewer's sandbox). */
+  explainer?: boolean
 }
 
 export interface SourceListResponse {
@@ -309,4 +311,19 @@ export interface RecentlyViewedResponse {
   id: string
   title: string
   last_viewed_at: string
+}
+
+// Explainers: interactive HTML dossiers generated into a notebook's notes.
+// Only 'sources' exists so far; 'repo' and 'discover' are planned (issue #19).
+export type ExplainerMode = 'sources' | 'repo' | 'discover'
+
+export interface CreateExplainerRequest {
+  mode: 'sources'
+  instructions?: string
+}
+
+export interface ExplainerJobResponse {
+  job_id: string
+  status: string
+  notebook_id: string
 }

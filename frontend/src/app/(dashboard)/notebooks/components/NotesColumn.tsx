@@ -23,12 +23,14 @@ import {
   FileText,
   Download,
   Upload,
+  Presentation,
 } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { NoteEditorDialog } from './NoteEditorDialog'
 import { NoteFileViewer } from './NoteFileViewer'
+import { GenerateExplainerDialog } from './GenerateExplainerDialog'
 import { NotebookPodcasts } from './NotebookPodcasts'
 import { getDateLocale } from '@/lib/utils/date-locale'
 import { formatDistanceToNow } from 'date-fns'
@@ -36,6 +38,7 @@ import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '../[id]/page'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote, useUploadNoteFile } from '@/lib/hooks/use-notes'
+import { useGenerateExplainer } from '@/lib/hooks/use-explainers'
 import { useToast } from '@/lib/hooks/use-toast'
 import {
   NOTE_FILE_EXTENSIONS,
@@ -53,6 +56,8 @@ interface NotesColumnProps {
   notes?: NoteResponse[]
   isLoading: boolean
   notebookId: string
+  /** Whether the notebook has any sources (the explainer is built from them). */
+  hasSources?: boolean
   contextSelections?: Record<string, NoteContextMode>
   onContextModeChange?: (noteId: string, mode: NoteContextMode) => void
   onBulkContextModeChange?: (action: NoteContextDefault) => void
@@ -62,6 +67,7 @@ export function NotesColumn({
   notes,
   isLoading,
   notebookId,
+  hasSources,
   contextSelections,
   onContextModeChange,
   onBulkContextModeChange
@@ -79,6 +85,8 @@ export function NotesColumn({
 
   const deleteNote = useDeleteNote()
   const uploadFile = useUploadNoteFile()
+  const explainer = useGenerateExplainer(notebookId)
+  const [explainerOpen, setExplainerOpen] = useState(false)
   const { toast } = useToast()
 
   // Collapsible column state
@@ -242,6 +250,16 @@ export function NotesColumn({
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExplainerOpen(true)}
+                  title={t('explainer.generate')}
+                  aria-label={t('explainer.generate')}
+                >
+                  <Presentation className="h-4 w-4 text-teal" />
+                  <span className="ml-2 hidden xl:inline">{t('explainer.button')}</span>
+                </Button>
                 <Button size="sm" onClick={() => handleOpenEditor()}>
                   <Plus className="h-4 w-4 mr-2" />
                   {t('common.writeNote')}
@@ -256,6 +274,16 @@ export function NotesColumn({
               <div className="mb-2 flex items-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground" role="status">
                 <LoadingSpinner />
                 {t('noteFiles.adding', { count: uploading })}
+              </div>
+            )}
+            {explainer.pending > 0 && (
+              <div
+                className="mb-2 flex items-center gap-2 rounded-md border border-dashed border-teal/40 p-3 text-sm text-muted-foreground"
+                role="status"
+                data-testid="explainer-pending"
+              >
+                <LoadingSpinner />
+                {t('explainer.generating', { count: explainer.pending })}
               </div>
             )}
             {isLoading ? (
@@ -278,7 +306,14 @@ export function NotesColumn({
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {note.attachment ? (
+                        {note.attachment && note.explainer ? (
+                          <>
+                            <Presentation className="h-4 w-4 text-teal" />
+                            <Badge variant="secondary" className="text-xs">
+                              {t('explainer.badge')}
+                            </Badge>
+                          </>
+                        ) : note.attachment ? (
                           <>
                             <FileText className="h-4 w-4 text-sage" />
                             <Badge variant="secondary" className="text-xs uppercase">
@@ -400,6 +435,14 @@ export function NotesColumn({
         onOpenChange={(open) => {
           if (!open) setViewerNote(null)
         }}
+      />
+
+      <GenerateExplainerDialog
+        open={explainerOpen}
+        onOpenChange={setExplainerOpen}
+        hasSources={hasSources}
+        isStarting={explainer.isStarting}
+        onGenerate={explainer.start}
       />
 
       <ConfirmDialog

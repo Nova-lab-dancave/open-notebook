@@ -1,0 +1,2 @@
+-- Nova-Notes migration 104 rollback: drop the explainer flag (notes and files are kept; they open as ordinary sandboxed HTML).
+REMOVE FIELD IF EXISTS explainer ON TABLE note;

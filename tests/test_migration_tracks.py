@@ -10,10 +10,12 @@ from open_notebook.database import async_migrate as am
 def test_tracks_are_registered_with_matching_down_files():
     m = am.AsyncMigrationManager()
     assert len(m.up_migrations) == len(m.down_migrations) == 25
-    assert len(m.nova_runner.up_migrations) == len(m.nova_runner.down_migrations) == 4
+    assert len(m.nova_runner.up_migrations) == len(m.nova_runner.down_migrations) == 5
     assert (m.nova_runner.table, m.nova_runner.base) == (am.NOVA_TABLE, am.NOVA_BASE)
     # 101 = notebook folders (was upstream-track 27 before the split)
     assert "folder" in m.nova_runner.up_migrations[1].sql
+    # 104 = generated explainer flag on notes
+    assert "explainer" in m.nova_runner.up_migrations[4].sql
 
 
 def _versions(sbl, nova):
@@ -65,6 +67,6 @@ async def test_needs_migration_when_only_the_record_move_is_pending():
 async def test_up_to_date_on_both_tracks():
     m = am.AsyncMigrationManager()
     with patch.object(
-        am, "get_all_versions", new=_versions(range(1, 26), [100, 101, 102, 103])
+        am, "get_all_versions", new=_versions(range(1, 26), [100, 101, 102, 103, 104])
     ):
         assert await m.needs_migration() is False

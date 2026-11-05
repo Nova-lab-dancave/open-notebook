@@ -34,6 +34,11 @@ vi.mock('@/lib/hooks/use-notes', () => ({
   useUploadNoteFile: () => ({ isPending: false, mutateAsync: uploadAsync }),
 }))
 
+const explainerState = { start: vi.fn(), pending: 0, isStarting: false }
+vi.mock('@/lib/hooks/use-explainers', () => ({
+  useGenerateExplainer: () => explainerState,
+}))
+
 const toast = vi.fn()
 vi.mock('@/lib/hooks/use-toast', () => ({
   useToast: () => ({ toast }),
@@ -195,5 +200,31 @@ describe('NotesColumn', () => {
       expect(editor).toHaveAttribute('data-open', 'true')
       expect(screen.getByTestId('file-viewer')).toHaveAttribute('data-open', 'false')
     })
+  })
+
+  it('opens the Generate Explainer dialog and shows pending explainers', () => {
+    explainerState.pending = 1
+    renderNotes([])
+    expect(screen.getByTestId('explainer-pending')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'explainer.generate' }))
+    expect(screen.getByTestId('explainer-option-sources')).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('explainer-option-repo')).toBeDisabled()
+    explainerState.pending = 0
+  })
+
+  it('marks generated explainers and opens them in the viewer', () => {
+    renderNotes([
+      {
+        ...existingNote,
+        id: 'note:exp',
+        title: 'Tides explained',
+        note_type: 'ai',
+        explainer: true,
+        attachment: { name: 'Tides-explained.html', type: 'text/html', size: 2048 },
+      },
+    ])
+    expect(screen.getByText('explainer.badge')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Tides explained'))
+    expect(screen.getByTestId('file-viewer')).toHaveAttribute('data-note-id', 'note:exp')
   })
 })
