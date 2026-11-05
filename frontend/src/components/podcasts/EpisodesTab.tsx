@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { AlertCircle, FileText, Loader2, RefreshCcw } from 'lucide-react'
+import { AlertCircle, ChevronDown, FileText, Loader2, RefreshCcw } from 'lucide-react'
 
 import { useDeletePodcastEpisode, usePodcastEpisodes, useRetryPodcastEpisode } from '@/lib/hooks/use-podcasts'
 import { EpisodeCard } from '@/components/podcasts/EpisodeCard'
@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { cn } from '@/lib/utils'
 import { GeneratePodcastDialog } from '@/components/podcasts/GeneratePodcastDialog'
 import { ReadScriptDialog } from '@/components/podcasts/ReadScriptDialog'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -54,6 +56,8 @@ export function EpisodesTab() {
   const { t } = useTranslation()
   const [showGenerateDialog, setShowGenerateDialog] = useState(false)
   const [showScriptDialog, setShowScriptDialog] = useState(false)
+  // Completed episodes pile up, so their list starts collapsed.
+  const [completedOpen, setCompletedOpen] = useState(false)
   const {
     episodes,
     statusGroups,
@@ -154,6 +158,52 @@ export function EpisodesTab() {
           return null
         }
 
+        const cards = data.map((episode) => (
+          <EpisodeCard
+            key={episode.id}
+            episode={episode}
+            onDelete={handleDelete}
+            deleting={deleteEpisode.isPending}
+            onRetry={handleRetry}
+            retrying={retryEpisode.isPending}
+          />
+        ))
+
+        if (key === 'completed') {
+          return (
+            <Collapsible
+              key={key}
+              open={completedOpen}
+              onOpenChange={setCompletedOpen}
+              asChild
+            >
+              <section className="space-y-4">
+                <CollapsibleTrigger className="group flex w-full items-start justify-between gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <div>
+                    <h3 className="text-lg font-semibold leading-tight">
+                      {title}{' '}
+                      <span className="font-mono text-sm font-normal text-muted-foreground">({data.length})</span>
+                    </h3>
+                    {description ? (
+                      <p className="text-sm text-muted-foreground">{description}</p>
+                    ) : null}
+                  </div>
+                  <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
+                    {completedOpen ? t('podcasts.hideEpisodes') : t('podcasts.showEpisodes')}
+                    <ChevronDown
+                      className={cn('h-4 w-4 transition-transform', completedOpen && 'rotate-180')}
+                    />
+                  </span>
+                </CollapsibleTrigger>
+                <Separator />
+                <CollapsibleContent>
+                  <div className="grid gap-4 md:grid-cols-2">{cards}</div>
+                </CollapsibleContent>
+              </section>
+            </Collapsible>
+          )
+        }
+
         return (
           <section key={key} className="space-y-4">
             <div>
@@ -163,18 +213,7 @@ export function EpisodesTab() {
               ) : null}
             </div>
             <Separator />
-            <div className="space-y-4">
-              {data.map((episode) => (
-                <EpisodeCard
-                  key={episode.id}
-                  episode={episode}
-                  onDelete={handleDelete}
-                  deleting={deleteEpisode.isPending}
-                  onRetry={handleRetry}
-                  retrying={retryEpisode.isPending}
-                />
-              ))}
-            </div>
+            <div className="space-y-4">{cards}</div>
           </section>
         )
       })}

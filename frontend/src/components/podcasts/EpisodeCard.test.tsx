@@ -11,8 +11,10 @@ vi.mock('@/lib/api/client', () => ({
   default: { get: vi.fn() },
 }))
 
+const downloadEpisodeAudio = vi.fn(async () => {})
 vi.mock('@/lib/api/podcasts', () => ({
   resolvePodcastAssetUrl: vi.fn(async () => undefined),
+  downloadEpisodeAudio: (...args: unknown[]) => downloadEpisodeAudio(...(args as [])),
 }))
 
 function makeEpisode(overrides: Partial<PodcastEpisode> = {}): PodcastEpisode {
@@ -157,5 +159,18 @@ describe('EpisodeCard playback', () => {
     expect(useAudioPlayerStore.getState().episode?.id).toBe('episode:9')
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     useAudioPlayerStore.getState().stop()
+  })
+})
+
+describe('EpisodeCard download', () => {
+  it('shows a download button only when the episode has audio', () => {
+    const { unmount } = render(<EpisodeCard episode={makeEpisode()} onDelete={vi.fn()} />)
+    expect(screen.queryByText('common.download')).toBeNull()
+    unmount()
+
+    const episode = makeEpisode({ audio_url: '/api/podcasts/episodes/episode:1/audio' })
+    render(<EpisodeCard episode={episode} onDelete={vi.fn()} />)
+    fireEvent.click(screen.getByText('common.download'))
+    expect(downloadEpisodeAudio).toHaveBeenCalledWith(episode)
   })
 })
