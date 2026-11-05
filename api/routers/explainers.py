@@ -18,10 +18,18 @@ from open_notebook.exceptions import InvalidInputError
 
 router = APIRouter()
 
-# Finished jobs older than this drop out of the notes pane; active ones never do.
+# Finished jobs older than this drop out of the notes pane.
 RECENT_JOBS_WINDOW = timedelta(hours=24)
+# A generation takes minutes. A job still queued or running after this was
+# orphaned (worker restarted or died mid-job) and is shown as failed, so the
+# pane stops polling and the row can be dismissed.
+STALE_JOB_AFTER = timedelta(minutes=30)
 MAX_JOBS = 10
 WORKER_FAILED_MESSAGE = "The background worker could not run the explainer job."
+STALE_JOB_MESSAGE = (
+    "The explainer job stopped unexpectedly or never started. Check that the "
+    "worker is running, then start a new explainer."
+)
 
 
 @router.post("/notebooks/{notebook_id}/explainers", response_model=ExplainerJobResponse)
@@ -67,7 +75,8 @@ async def create_explainer(notebook_id: str, request: ExplainerCreateRequest):
 )
 async def list_explainer_jobs(notebook_id: str):
     """Explainer jobs for this notebook: every queued or running one, plus those
-    that finished in the last 24 hours, newest first.
+    requested in the last 24 hours, newest first. A job queued or running for
+    more than 30 minutes is reported as failed.
 
     This is what the notes pane shows, so a job that fails (no model, model
     error, worker problem) stays visible with its reason instead of vanishing.
@@ -79,18 +88,19 @@ async def list_explainer_jobs(notebook_id: str):
         "AND args.notebook_id = $notebook_id",
         {"notebook_id": str(notebook.id)},
     )
-    cutoff = datetime.now(timezone.utc) - RECENT_JOBS_WINDOW
-    jobs = [job for job in (_summarize(row) for row in rows or []) if job]
+    now = datetime.now(timezone.utc)
+    jobs = [job for job in (_summarize(row, now) for row in rows or []) if job]
     jobs = [
         job
         for job in jobs
-        if job.status in ("queued", "running") or _after(job.requested_at, cutoff)
+        if job.status in ("queued", "running")
+        or _after(job.requested_at, now - RECENT_JOBS_WINDOW)
     ]
     jobs.sort(key=lambda job: job.requested_at or "", reverse=True)
     return jobs[:MAX_JOBS]
 
 
-def _summarize(row: Dict[str, Any]) -> Optional[ExplainerJobSummary]:
+def _summarize(row: Dict[str, Any], now: datetime) -> Optional[ExplainerJobSummary]:
     args = row.get("args") or {}
     requested_at = args.get("requested_at")
     if not requested_at:
@@ -106,7 +116,11 @@ def _summarize(row: Dict[str, Any]) -> Optional[ExplainerJobSummary]:
     else:  # failed, canceled, or completed with success=False
         status = "failed"
     error = None
-    if status == "failed":
+    if status in ("queued", "running") and not _after(
+        requested_at, now - STALE_JOB_AFTER
+    ):
+        status, error = "failed", STALE_JOB_MESSAGE
+    elif status == "failed":
         error = (
             result.get("error_message")
             or row.get("error_message")
