@@ -327,3 +327,15 @@ export interface ExplainerJobResponse {
   status: string
   notebook_id: string
 }
+
+export type ExplainerJobStatus = 'queued' | 'running' | 'completed' | 'failed'
+
+/** One explainer job as the notes pane shows it (GET /notebooks/{id}/explainers/jobs). */
+export interface ExplainerJob {
+  job_id: string
+  status: ExplainerJobStatus
+  requested_at: string | null
+  note_id: string | null
+  title: string | null
+  error_message: string | null
+}

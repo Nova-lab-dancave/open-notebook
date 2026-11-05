@@ -38,7 +38,8 @@ import { ContextToggle } from '@/components/common/ContextToggle'
 import type { NoteContextMode } from '../[id]/page'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote, useUploadNoteFile } from '@/lib/hooks/use-notes'
-import { useGenerateExplainer } from '@/lib/hooks/use-explainers'
+import { useExplainerJobs, useGenerateExplainer } from '@/lib/hooks/use-explainers'
+import { ExplainerJobRow } from './ExplainerJobRow'
 import { useToast } from '@/lib/hooks/use-toast'
 import {
   NOTE_FILE_EXTENSIONS,
@@ -86,6 +87,7 @@ export function NotesColumn({
   const deleteNote = useDeleteNote()
   const uploadFile = useUploadNoteFile()
   const explainer = useGenerateExplainer(notebookId)
+  const explainerJobs = useExplainerJobs(notebookId)
   const [explainerOpen, setExplainerOpen] = useState(false)
   const { toast } = useToast()
 
@@ -204,12 +206,12 @@ export function NotesColumn({
             </div>
           )}
           <CardHeader className="pb-3 flex-shrink-0">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground">
                 <span aria-hidden className="h-3.5 w-[3px] rounded-full bg-gold" />
                 {notesLabel}
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 {onBulkContextModeChange && notes && notes.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -258,7 +260,7 @@ export function NotesColumn({
                   aria-label={t('explainer.generate')}
                 >
                   <Presentation className="h-4 w-4 text-teal" />
-                  <span className="ml-2 hidden xl:inline">{t('explainer.button')}</span>
+                  <span className="ml-2 hidden min-[1800px]:inline">{t('explainer.button')}</span>
                 </Button>
                 <Button size="sm" onClick={() => handleOpenEditor()}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -276,16 +278,9 @@ export function NotesColumn({
                 {t('noteFiles.adding', { count: uploading })}
               </div>
             )}
-            {explainer.pending > 0 && (
-              <div
-                className="mb-2 flex items-center gap-2 rounded-md border border-dashed border-teal/40 p-3 text-sm text-muted-foreground"
-                role="status"
-                data-testid="explainer-pending"
-              >
-                <LoadingSpinner />
-                {t('explainer.generating', { count: explainer.pending })}
-              </div>
-            )}
+            {explainerJobs.jobs.map((job) => (
+              <ExplainerJobRow key={job.job_id} job={job} onDismiss={explainerJobs.dismiss} />
+            ))}
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <LoadingSpinner />
