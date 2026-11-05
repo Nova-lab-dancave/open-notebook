@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { ExplainerJob } from '@/lib/types/api'
+import { NOTE_CARD_CLASS } from './NoteCard'
 
 // A job still queued after this long usually means no worker is picking it up.
 export const QUEUED_WARNING_MS = 60_000
@@ -18,7 +19,7 @@ interface ExplainerJobRowProps {
   now?: number
 }
 
-/** A queued, running or failed explainer job in the notes pane. */
+/** A queued, running or failed explainer job, as a square card in the notes grid. */
 export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
   const { t } = useTranslation()
   const clock = useClock(job.status === 'queued' && now === undefined)
@@ -27,21 +28,22 @@ export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
   if (job.status === 'failed') {
     return (
       <div
-        className="mb-2 flex items-start gap-2 rounded-md border border-warn/30 bg-warn-tint p-3 text-sm"
+        className={`${NOTE_CARD_CLASS} gap-2 border-warn/30 bg-warn-tint text-sm`}
         role="alert"
         data-testid="explainer-job-failed"
       >
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium">{t('explainer.failed')}</p>
-          <p className="mt-0.5 break-words text-xs text-muted-foreground">
-            {job.error_message || t('apiErrors.genericError')}
-          </p>
-        </div>
+        <AlertTriangle className="h-5 w-5 shrink-0 text-warn" aria-hidden />
+        <p className="pr-6 font-medium">{t('explainer.failed')}</p>
+        <p
+          className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground [overflow-wrap:anywhere]"
+          title={job.error_message || undefined}
+        >
+          {job.error_message || t('apiErrors.genericError')}
+        </p>
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 shrink-0 p-0"
+          className="absolute right-1.5 top-1.5 h-6 w-6 p-0"
           onClick={() => onDismiss(job.job_id)}
           aria-label={t('explainer.dismiss')}
           title={t('explainer.dismiss')}
@@ -57,7 +59,7 @@ export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
 
   return (
     <div
-      className="mb-2 flex items-center gap-2 rounded-md border border-dashed border-teal/40 p-3 text-sm text-muted-foreground"
+      className={`${NOTE_CARD_CLASS} items-center justify-center gap-3 border-dashed border-teal/40 text-center text-sm text-muted-foreground`}
       role="status"
       data-testid="explainer-pending"
     >

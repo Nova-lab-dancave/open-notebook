@@ -257,7 +257,7 @@ function SourceCardImpl({
             {/* Title */}
             <div className={cn('mb-1.5', !isCompleted && 'mb-1')}>
               <h4
-                className="text-sm font-medium leading-tight line-clamp-2 break-all pr-6"
+                className="text-sm font-medium leading-tight line-clamp-2 [overflow-wrap:anywhere] pr-6"
                 title={title}
               >
                 {title}
