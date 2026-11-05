@@ -28,6 +28,20 @@ ANTHROPIC_RETIRED_HAIKU_404 = (
     "Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', "
     "'message': 'model: claude-3-haiku-20240307'}, 'request_id': 'req_test'}"
 )
+# A retired/missing model whose random Anthropic request id embeds a bare
+# "403" — the classifier must not read the id as a permission failure.
+ANTHROPIC_404_WITH_403_IN_REQUEST_ID = (
+    "Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', "
+    "'message': 'model: claude-haiku-4-5-20251001'}, "
+    "'request_id': 'req_011Cga403VtXy92ABc'}"
+)
+# A genuine permission failure whose request id ALSO embeds "403" — must
+# still be classified as a connection failure (via the HTTP status, not the id).
+ANTHROPIC_PERM_403_WITH_REQUEST_ID = (
+    "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', "
+    "'message': 'Your API key does not have permission to use the specified resource.'}, "
+    "'request_id': 'req_011Cga403VtXy92ABc'}"
+)
 GOOGLE_DEPRECATED = "400 Model gemini-1.5-pro has been deprecated."
 GOOGLE_BAD_KEY_401 = "401 API key not valid. Please pass a valid API key."
 GOOGLE_PERM_403 = "403 Permission denied on resource project."
@@ -73,6 +87,17 @@ class TestConnectionFailureReason:
         # an HTTP 403 permission failure.
         assert _connection_failure_reason(ANTHROPIC_RETIRED_HAIKU_404) is None
         assert _connection_failure_reason(GOOGLE_PERM_403) is not None
+
+    def test_request_id_digits_are_not_a_403(self):
+        # A random provider request id can embed a bare "403"; a missing
+        # model carrying such an id must not be a connection failure.
+        assert _connection_failure_reason(ANTHROPIC_404_WITH_403_IN_REQUEST_ID) is None
+
+    def test_real_403_with_request_id_still_fails(self):
+        # Stripping request ids must not hide a genuine permission failure.
+        reason = _connection_failure_reason(ANTHROPIC_PERM_403_WITH_REQUEST_ID)
+        assert reason is not None
+        assert "lacks required permissions" in reason
 
 
 class TestRateLimitDetection:
