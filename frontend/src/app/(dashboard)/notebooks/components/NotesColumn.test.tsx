@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NoteResponse } from '@/lib/types/api'
+import { ExplainerJob, NoteResponse } from '@/lib/types/api'
 import { NotesColumn } from './NotesColumn'
 
 interface MockNoteEditorDialogProps {
@@ -34,9 +34,15 @@ vi.mock('@/lib/hooks/use-notes', () => ({
   useUploadNoteFile: () => ({ isPending: false, mutateAsync: uploadAsync }),
 }))
 
-const explainerState = { start: vi.fn(), pending: 0, isStarting: false }
+const explainerState = { start: vi.fn(), isStarting: false }
+const jobsState: { jobs: ExplainerJob[]; dismiss: ReturnType<typeof vi.fn>; isLoading: boolean } = {
+  jobs: [],
+  dismiss: vi.fn(),
+  isLoading: false,
+}
 vi.mock('@/lib/hooks/use-explainers', () => ({
   useGenerateExplainer: () => explainerState,
+  useExplainerJobs: () => jobsState,
 }))
 
 const toast = vi.fn()
@@ -202,14 +208,20 @@ describe('NotesColumn', () => {
     })
   })
 
-  it('opens the Generate Explainer dialog and shows pending explainers', () => {
-    explainerState.pending = 1
+  it('opens the Generate Explainer dialog and shows explainer jobs from the server', () => {
+    jobsState.jobs = [
+      { job_id: 'command:a', status: 'running', requested_at: new Date().toISOString(), note_id: null, title: null, error_message: null },
+      { job_id: 'command:b', status: 'failed', requested_at: new Date().toISOString(), note_id: null, title: null, error_message: 'No model configured' },
+    ]
     renderNotes([])
     expect(screen.getByTestId('explainer-pending')).toBeInTheDocument()
+    expect(screen.getByTestId('explainer-job-failed')).toHaveTextContent('No model configured')
+    fireEvent.click(screen.getByRole('button', { name: 'explainer.dismiss' }))
+    expect(jobsState.dismiss).toHaveBeenCalledWith('command:b')
     fireEvent.click(screen.getByRole('button', { name: 'explainer.generate' }))
     expect(screen.getByTestId('explainer-option-sources')).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByTestId('explainer-option-repo')).toBeDisabled()
-    explainerState.pending = 0
+    jobsState.jobs = []
   })
 
   it('marks generated explainers and opens them in the viewer', () => {
