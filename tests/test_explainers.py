@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from api.routers.explainers import STALE_JOB_MESSAGE
 from commands.explainer_commands import (
     GenerateExplainerInput,
     generate_explainer_command,
@@ -324,6 +325,7 @@ def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
             {"success": False, "error_message": "old"},
         ),
         _cmd("command:oldqueued", "new", old),
+        _cmd("command:stuck", "running", (now - timedelta(minutes=45)).isoformat()),
         {
             "id": "command:legacy",
             "status": "completed",
@@ -345,7 +347,7 @@ def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
         "command:nomodel",
         "command:crash",
         "command:queued",
-        "command:oldqueued",
+        "command:stuck",
     }
     assert (
         jobs["command:done"]["status"] == "completed"
@@ -358,6 +360,10 @@ def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
     }
     assert jobs["command:crash"]["error_message"] == "boom"
     assert jobs["command:queued"]["status"] == "queued"
+    # Orphaned by a worker restart: shown as failed (dismissible, stops polling);
+    # one orphaned days ago has aged out entirely.
+    assert jobs["command:stuck"]["status"] == "failed"
+    assert jobs["command:stuck"]["error_message"] == STALE_JOB_MESSAGE
     assert response.json()[0]["job_id"] == "command:queued"  # newest first
     assert q.await_args is not None and q.await_args.args[1] == {
         "notebook_id": "notebook:n1"
