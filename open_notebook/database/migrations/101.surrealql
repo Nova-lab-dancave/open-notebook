@@ -1,4 +1,4 @@
--- Migration 27: notebook folders.
+-- Nova-Notes migration 101 (numbered 27 before the fork track split): notebook folders.
 -- A `folder` groups notebooks on the home page. Names are NOT unique in the
 -- database (the API enforces case-insensitive uniqueness). `notebook.folder`
 -- is NONE for ungrouped notebooks; deleting a folder is handled by the API,

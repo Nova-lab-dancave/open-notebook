@@ -1,4 +1,4 @@
--- Migration 26 rollback: remove podcast episode notebook link and progress.
+-- Nova-Notes migration 100 (numbered 26 before the fork track split) rollback: remove podcast episode notebook link and progress.
 REMOVE INDEX IF EXISTS idx_episode_notebook ON TABLE episode;
 REMOVE FIELD IF EXISTS notebook ON TABLE episode;
 REMOVE FIELD IF EXISTS progress ON TABLE episode;

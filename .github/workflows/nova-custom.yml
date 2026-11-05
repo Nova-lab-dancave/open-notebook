@@ -69,7 +69,7 @@ jobs:
             -e SURREAL_NAMESPACE=open_notebook -e SURREAL_DATABASE=open_notebook \
             nova-open-notebook:candidate
 
-      - name: Smoke test (health, UI, migration 26 routes)
+      - name: Smoke test (health, UI, fork migration routes)
         run: |
           api=000; ui=000
           for attempt in $(seq 1 90); do
@@ -82,7 +82,7 @@ jobs:
           test "$api" = 200
           test "$ui" = 200 -o "$ui" = 307
           H="Authorization: Bearer nova-custom-ephemeral-password"
-          # New field/filter only works if migration 26 ran and the new code is live.
+          # New field/filter only works if fork migration 100 ran and the new code is live.
           code=$(curl -sS -o /tmp/eps.json -w '%{http_code}' -H "$H" \
             "http://127.0.0.1:15055/api/podcasts/episodes?notebook_id=notebook:smoke")
           echo "episodes?notebook_id -> $code"; cat /tmp/eps.json; echo
@@ -92,7 +92,7 @@ jobs:
             -X POST -d '{"prompt":"x"}' http://127.0.0.1:15055/api/notebooks/discover)
           echo "discover(short prompt) -> $code"
           test "$code" = 422
-          # Dropped-file notes need migration 29 and a working extractor in the image:
+          # Dropped-file notes need fork migration 103 and a working extractor in the image:
           # upload a text file, then read the original back.
           nb=$(curl -sS -H "$H" -H 'Content-Type: application/json' -X POST -d '{"name":"smoke"}' \
             http://127.0.0.1:15055/api/notebooks | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
@@ -110,6 +110,8 @@ jobs:
           echo "read-script(unknown profile) -> $code"; cat /tmp/rs.json; echo
           test "$code" = 404 && grep -q "not found" /tmp/rs.json
           docker logs nova-open-notebook 2>&1 | grep -i "migration" | tail -5
+          # Fresh DB: upstream track to its end, fork track to its last migration.
+          docker logs nova-open-notebook 2>&1 | grep -q "Nova-Notes version: 103"
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4

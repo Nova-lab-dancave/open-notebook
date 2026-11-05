@@ -4,10 +4,8 @@
 
 ## Related Issue
 
-<!-- Non-trivial PRs (features, architecture changes) must link an approved Issue.
-     Small obvious fixes (typo, docs, tiny bug) don't need one — write "N/A (small fix)" below.
-     Sizeable change without an approved Issue? Mark this PR as draft. Start a Discussion for an
-     idea/feature or open an Issue for a reproducible bug, then wait for the work to be approved. -->
+<!-- Link the Issue you picked up in this repo. Small obvious fixes (typo, docs, tiny bug)
+     don't need one: write "N/A (small fix)" below. -->
 
 Fixes #<!-- issue number, or "N/A (small fix)" -->
 
@@ -40,7 +38,7 @@ Fixes #<!-- issue number, or "N/A (small fix)" -->
 
 <!-- This section helps ensure your PR aligns with our project vision -->
 
-**Which design principles does this PR support?** (See [VISION.md](https://github.com/lfnovo/open-notebook/blob/main/VISION.md))
+**Which design principles does this PR support?** (See [VISION.md](../VISION.md))
 
 - [ ] Privacy First
 - [ ] Simplicity Over Features
@@ -80,7 +78,7 @@ Fixes #<!-- issue number, or "N/A (small fix)" -->
 - [ ] I have added comments to complex logic
 
 ### Database Changes
-- [ ] I have created migration scripts for any database schema changes (in `open_notebook/database/migrations/`, registered in `async_migrate.py`)
+- [ ] Schema changes are Nova-Notes migrations numbered 100+ (files in `open_notebook/database/migrations/`, number added to `NOVA_MIGRATION_NUMBERS`), see CONTRIBUTING.md
 - [ ] Migration includes both up and down scripts
 - [ ] Migration has been tested locally
 
@@ -101,12 +99,12 @@ Fixes #<!-- issue number, or "N/A (small fix)" -->
 
 Before submitting, please verify:
 
-- [ ] I have read [CONTRIBUTING.md](https://github.com/lfnovo/open-notebook/blob/main/docs/7-DEVELOPMENT/contributing.md)
-- [ ] I have read [VISION.md](https://github.com/lfnovo/open-notebook/blob/main/VISION.md)
-- [ ] This PR addresses an approved Issue assigned to me, **or** it's a small obvious fix (typo, docs, tiny bug) that doesn't need one — ideas and features begin in Discussions; reproducible bugs begin in Issues
+- [ ] I have read [CONTRIBUTING.md](../CONTRIBUTING.md) (this fork's workflow)
+- [ ] This PR targets `heli-konton/open-notebook` `main`, not lfnovo
+- [ ] This PR addresses an Issue assigned to me, **or** it's a small obvious fix that doesn't need one
 - [ ] I have not included unrelated changes in this PR
 - [ ] My PR title follows the Conventional Commits format (e.g., "fix(podcasts): …", "feat: …")
 
 ---
 
-**Thank you for contributing to Open Notebook!** 🎉
+**Thank you for contributing to Nova-Notes!** 🎉

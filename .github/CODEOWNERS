@@ -1,0 +1,6 @@
+# Any PR needs one approval from a code owner (enforced by the main-branch ruleset).
+* @heli-konton @Beardsman69
+
+# Risky paths, listed explicitly so they stay owned even if the default changes.
+/.github/ @heli-konton @Beardsman69
+/open_notebook/database/ @heli-konton @Beardsman69

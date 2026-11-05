@@ -1,5 +1,7 @@
 # Contributing to Open Notebook
 
+> **Nova-Notes fork:** this page describes upstream's process. Contributing to this fork? Read [CONTRIBUTING.md](../../CONTRIBUTING.md) at the repo root first; it overrides this page where they differ.
+
 Thank you for your interest in contributing to Open Notebook! We welcome contributions from developers of all skill levels. This guide will help you understand our contribution workflow and what makes a good contribution.
 
 ## 🚦 Discussions for Ideas, Issues for Work
