@@ -36,8 +36,10 @@ from open_notebook.exceptions import IncompleteGenerationError, InvalidInputErro
 DEFAULT_CONTEXT_CHARS = 240_000
 MIN_PER_SOURCE_CHARS = 2_000
 # Output budget for the HTML page. Override with OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS
-# (lower it for models with a small output limit).
-DEFAULT_MAX_TOKENS = 16_000
+# (lower it for models with a small output limit). A full page from a two-source
+# notebook measured ~30k output tokens on Claude Haiku, ~9k of them hidden
+# reasoning that shares this budget, so the default leaves generous headroom.
+DEFAULT_MAX_TOKENS = 48_000
 MAX_INSTRUCTIONS_CHARS = 2_000
 # The note's text content (used for search, embeddings and chat context).
 MAX_NOTE_TEXT_CHARS = 50_000
@@ -157,8 +159,9 @@ def extract_html(text: str) -> str:
     if end == -1:
         raise IncompleteGenerationError(
             "The explainer was cut off before it finished (the model hit its output "
-            "limit). Try again with fewer or shorter sources, a model with a larger "
-            "output limit, or raise OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS."
+            "limit; hidden reasoning counts towards it). Try again with fewer or "
+            "shorter sources, a model with a larger output limit, or raise "
+            "OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS."
         )
     return candidate[: end + len("</html>")]
 
