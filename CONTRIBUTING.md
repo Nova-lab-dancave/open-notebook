@@ -8,7 +8,7 @@ Nova-Notes is a fork of [lfnovo/open-notebook](https://github.com/lfnovo/open-no
 2. **Branch from `main`**: `<your-github-name>/<short-topic>`, e.g. `adrian/podcast-chapters`. Never push to `main`; it is protected.
 3. **Commit with [Conventional Commits](https://www.conventionalcommits.org/)**: `feat(podcasts): …`, `fix(notes): …`, `docs: …`. The PR title uses the same format.
 4. **Open a PR against `heli-konton/open-notebook` `main`.** Not against lfnovo: `gh pr create` picks the upstream repo by default in a fork, so run `gh repo set-default heli-konton/open-notebook` once in your clone (or pass `--repo heli-konton/open-notebook`).
-5. **CI must pass and one code owner must approve** (see [.github/CODEOWNERS](.github/CODEOWNERS)). PRs are squash-merged and the branch is deleted.
+5. **CI must pass and one code owner must approve** (see [.github/CODEOWNERS](.github/CODEOWNERS)). Feature PRs are squash-merged and the branch is deleted. The one exception is upstream-sync PRs (merging lfnovo into the fork): the maintainer merges those with a merge commit, so git keeps the upstream history and the next sync doesn't re-conflict.
 
 ## What happens after a merge
 
