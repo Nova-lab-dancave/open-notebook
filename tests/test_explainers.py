@@ -256,3 +256,29 @@ def test_harden_strips_resource_hints_and_refresh():
     for gone in ("x.evil", "leak.evil", "y.evil", "z.evil"):
         assert gone not in hardened
     assert "rel='stylesheet'" in hardened and "Content-Security-Policy" in hardened
+
+
+# --- output budget ----------------------------------------------------------
+
+
+def test_default_output_budget_fits_a_full_page_from_a_reasoning_model(monkeypatch):
+    """Measured on a real 2-source notebook with Claude Haiku: a complete page took
+    30,353 output tokens, 8,859 of them hidden reasoning that shares the budget. The
+    old 16,000 default cut every such page off, so the default must leave headroom."""
+    monkeypatch.delenv("OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS", raising=False)
+    assert explainer.max_output_tokens() >= 48_000
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("20000", 20_000),
+        ("", explainer.DEFAULT_MAX_TOKENS),
+        ("lots", explainer.DEFAULT_MAX_TOKENS),
+        ("0", explainer.DEFAULT_MAX_TOKENS),
+        ("-5", explainer.DEFAULT_MAX_TOKENS),
+    ],
+)
+def test_output_budget_env_override_ignores_bad_values(monkeypatch, value, expected):
+    monkeypatch.setenv("OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS", value)
+    assert explainer.max_output_tokens() == expected
