@@ -240,3 +240,19 @@ def test_explainer_file_may_run_scripts_but_not_reach_the_network(client, files_
     assert csp.startswith("sandbox allow-scripts;") and "allow-same-origin" not in csp
     assert "default-src 'none'" in csp
     assert listed["explainer"] is True
+
+
+def test_harden_strips_resource_hints_and_refresh():
+    page = (
+        "<!DOCTYPE html><html><head>"
+        "<link rel='preconnect' href='https://x.evil'>"
+        '<link rel="dns-prefetch" href="//leak.evil">'
+        "<LINK REL=prefetch HREF=https://y.evil/a>"
+        '<meta http-equiv="refresh" content="0;url=https://z.evil">'
+        "<link rel='stylesheet' href='data:text/css,'>"
+        "</head><body>ok</body></html>"
+    )
+    hardened = explainer.harden_html(page)
+    for gone in ("x.evil", "leak.evil", "y.evil", "z.evil"):
+        assert gone not in hardened
+    assert "rel='stylesheet'" in hardened and "Content-Security-Policy" in hardened

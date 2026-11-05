@@ -288,7 +288,6 @@ export const jaJP = {
     failed: "解説を生成できませんでした",
     badge: "解説",
     viewerMeta: "インタラクティブな解説、{{size}}。ネットワークにアクセスできないサンドボックスで動作します。",
-    download: "HTML をダウンロード",
   },
   sections: {
     title: "Sections",

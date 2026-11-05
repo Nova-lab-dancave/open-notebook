@@ -288,7 +288,6 @@ export const esES = {
     failed: "No se pudo generar el explicador",
     badge: "Explicador",
     viewerMeta: "Explicador interactivo, {{size}}. Se ejecuta en un entorno aislado sin acceso a la red.",
-    download: "Descargar HTML",
   },
   sections: {
     title: "Sections",

@@ -288,7 +288,6 @@ export const ruRU = {
     failed: "Не удалось создать объяснение",
     badge: "Объяснение",
     viewerMeta: "Интерактивное объяснение, {{size}}. Работает в песочнице без доступа к сети.",
-    download: "Скачать HTML",
   },
   sections: {
     title: "Sections",

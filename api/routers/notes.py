@@ -228,7 +228,7 @@ async def get_note_file(
         headers = {"X-Content-Type-Options": "nosniff"}
         if mime == "text/html" and note.explainer:
             # Generated explainer: scripts may run, but only in an opaque origin
-            # and with every network request blocked (explainer sandbox ADR in docs/7-DEVELOPMENT/decisions).
+            # and with subresource requests blocked (ADR-015).
             headers["Content-Security-Policy"] = EXPLAINER_CSP_HEADER
         elif mime == "text/html":
             # Uploaded HTML must never run scripts in the app's origin.

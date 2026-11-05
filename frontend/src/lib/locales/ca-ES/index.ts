@@ -288,7 +288,6 @@ export const caES = {
     failed: "No s'ha pogut generar l'explicador",
     badge: "Explicador",
     viewerMeta: "Explicador interactiu, {{size}}. S'executa en un entorn aïllat sense accés a la xarxa.",
-    download: "Baixa l'HTML",
   },
   sections: {
     title: "Sections",

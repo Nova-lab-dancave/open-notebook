@@ -288,7 +288,6 @@ export const itIT = {
     failed: "Impossibile generare la spiegazione",
     badge: "Spiegazione",
     viewerMeta: "Spiegazione interattiva, {{size}}. Viene eseguita in una sandbox senza accesso alla rete.",
-    download: "Scarica HTML",
   },
   sections: {
     title: "Sections",

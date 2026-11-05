@@ -288,7 +288,6 @@ export const trTR = {
     failed: "Açıklayıcı oluşturulamadı",
     badge: "Açıklayıcı",
     viewerMeta: "Etkileşimli açıklayıcı, {{size}}. Ağ erişimi olmayan bir korumalı alanda çalışır.",
-    download: "HTML'yi indir",
   },
   sections: {
     title: "Sections",

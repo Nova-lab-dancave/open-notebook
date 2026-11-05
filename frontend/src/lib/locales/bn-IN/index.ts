@@ -288,7 +288,6 @@ export const bnIN = {
     failed: "ব্যাখ্যা তৈরি করা যায়নি",
     badge: "ব্যাখ্যা",
     viewerMeta: "ইন্টারঅ্যাকটিভ ব্যাখ্যা, {{size}}। এটি নেটওয়ার্ক অ্যাক্সেস ছাড়া একটি স্যান্ডবক্সে চলে।",
-    download: "HTML ডাউনলোড করুন",
   },
   sections: {
     title: "Sections",

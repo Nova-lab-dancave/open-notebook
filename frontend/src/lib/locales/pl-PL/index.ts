@@ -288,7 +288,6 @@ export const plPL = {
     failed: "Nie udało się wygenerować objaśnienia",
     badge: "Objaśnienie",
     viewerMeta: "Interaktywne objaśnienie, {{size}}. Działa w piaskownicy bez dostępu do sieci.",
-    download: "Pobierz HTML",
   },
   sections: {
     title: "Sections",

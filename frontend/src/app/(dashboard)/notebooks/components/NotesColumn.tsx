@@ -366,7 +366,7 @@ export function NotesColumn({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            {note.attachment && (
+                            {note.attachment && !note.explainer && (
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation()

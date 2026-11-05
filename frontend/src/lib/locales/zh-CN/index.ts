@@ -288,7 +288,6 @@ export const zhCN = {
     failed: "无法生成讲解",
     badge: "讲解",
     viewerMeta: "交互式讲解，{{size}}。在无网络访问的沙盒中运行。",
-    download: "下载 HTML",
   },
   sections: {
     title: "Sections",

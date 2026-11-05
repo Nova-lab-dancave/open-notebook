@@ -288,7 +288,6 @@ export const ptBR = {
     failed: "Não foi possível gerar o explicador",
     badge: "Explicador",
     viewerMeta: "Explicador interativo, {{size}}. Ele roda em uma sandbox sem acesso à rede.",
-    download: "Baixar HTML",
   },
   sections: {
     title: "Sections",

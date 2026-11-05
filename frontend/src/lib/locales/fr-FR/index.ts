@@ -288,7 +288,6 @@ export const frFR = {
     failed: "Impossible de générer l'explicatif",
     badge: "Explicatif",
     viewerMeta: "Explicatif interactif, {{size}}. Il s'exécute dans un bac à sable sans accès réseau.",
-    download: "Télécharger le HTML",
   },
   sections: {
     title: "Sections",

@@ -4,14 +4,17 @@ An explainer is one self-contained HTML page written by the chat model from a
 notebook's sources. It is stored as a note attachment (see migration 103) and
 flagged ``explainer`` (migration 104) so the viewer may run its scripts.
 
-Safety model (explainer sandbox ADR in docs/7-DEVELOPMENT/decisions):
+Safety model (ADR-015):
 
 - The page is shown in an iframe sandboxed with ``allow-scripts`` only, so it
   runs in an opaque origin and can never read the app's token or call the API.
-- :func:`harden_html` injects a Content-Security-Policy that blocks every
-  network request (no remote scripts, styles, fonts, images, fetch or forms),
-  so generated code cannot load anything or send notebook text anywhere. CSPs
-  combine restrictively, so a policy the model writes itself cannot loosen it.
+- :func:`harden_html` injects a Content-Security-Policy that blocks subresource
+  requests (remote scripts, styles, fonts, images, fetch, XHR, beacons,
+  websockets, form posts). CSPs combine restrictively, so a policy the model
+  writes itself cannot loosen it. It also strips resource hints and
+  ``<meta http-equiv=refresh>`` (defence in depth; CSP doesn't cover hints).
+- Navigating the frame itself to an outside URL is not covered by the frame's
+  CSP; the app's own ``frame-src`` policy (``frontend/next.config.ts``) blocks it.
 - The same policy is sent as a header when the file is served.
 
 Source text is untrusted: the prompt keeps instructions in the system message
@@ -55,6 +58,14 @@ _FENCE = re.compile(r"```(?:html)?\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
 _DOC_START = re.compile(r"<!doctype\s+html|<html[\s>]", re.IGNORECASE)
 _HEAD_OPEN = re.compile(r"<head(\s[^>]*)?>", re.IGNORECASE)
 _HTML_OPEN = re.compile(r"<html(\s[^>]*)?>", re.IGNORECASE)
+_RESOURCE_HINT = re.compile(
+    r"<link\b[^>]*\brel\s*=\s*[\"']?[^\"'>]*"
+    r"\b(?:preconnect|dns-prefetch|prefetch|prerender|modulepreload|preload)\b[^>]*>",
+    re.IGNORECASE,
+)
+_META_REFRESH = re.compile(
+    r"<meta\b[^>]*\bhttp-equiv\s*=\s*[\"']?\s*refresh\b[^>]*>", re.IGNORECASE
+)
 _TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 _WS = re.compile(r"[ \t]+")
 _BLANKS = re.compile(r"\n\s*\n+")
@@ -153,7 +164,16 @@ def extract_html(text: str) -> str:
 
 
 def harden_html(html: str) -> str:
-    """Insert the no-network CSP as the first element of ``<head>``."""
+    """Strip resource hints and refresh redirects, then insert the no-network
+    CSP as the first element of ``<head>``.
+
+    CSP does not govern ``<link rel=preconnect|dns-prefetch>`` (a hint can leak a
+    hostname) or every navigation, so those tags are removed. This is regex on
+    model output: defence in depth only. Navigation away from the frame is
+    blocked by the app's ``frame-src`` policy (ADR-015).
+    """
+    html = _RESOURCE_HINT.sub("", html)
+    html = _META_REFRESH.sub("", html)
     head = _HEAD_OPEN.search(html)
     if head:
         return html[: head.end()] + _CSP_META + html[head.end() :]

@@ -755,7 +755,7 @@ class Note(ObjectModel):
     attachment_mime: Optional[str] = None
     attachment_size: Optional[int] = None
     # True for a generated interactive explainer (Nova-Notes migration 104): its
-    # HTML may run scripts in the viewer's script-only sandbox (explainer sandbox ADR in docs/7-DEVELOPMENT/decisions).
+    # HTML may run scripts in the viewer's script-only sandbox (ADR-015).
     explainer: Optional[bool] = None
 
     @field_validator("content")

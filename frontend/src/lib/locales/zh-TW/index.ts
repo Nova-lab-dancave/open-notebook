@@ -288,7 +288,6 @@ export const zhTW = {
     failed: "無法產生講解",
     badge: "講解",
     viewerMeta: "互動式講解，{{size}}。在無網路存取的沙盒中執行。",
-    download: "下載 HTML",
   },
   sections: {
     title: "Sections",

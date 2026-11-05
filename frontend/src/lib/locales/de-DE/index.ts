@@ -291,7 +291,6 @@ export const deDE = {
     failed: "Die Erklärseite konnte nicht erstellt werden",
     badge: "Erklärseite",
     viewerMeta: "Interaktive Erklärseite, {{size}}. Sie läuft in einer Sandbox ohne Netzwerkzugriff.",
-    download: "HTML herunterladen",
   },
   sections: {
     title: "Sections",

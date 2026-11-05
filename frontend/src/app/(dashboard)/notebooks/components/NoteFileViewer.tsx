@@ -32,7 +32,10 @@ interface NoteFileViewerProps {
  * fully sandboxed iframe, so scripts in the file can never run. Generated
  * explainers are the one exception: their scripts run (sandbox `allow-scripts`
  * without `allow-same-origin`, so an opaque origin with no access to the app),
- * and the server-injected CSP blocks every network request (explainer sandbox ADR in docs/7-DEVELOPMENT/decisions).
+ * the server-injected CSP blocks subresource requests, and the app's
+ * `frame-src` policy (next.config.ts) stops the frame navigating to an outside
+ * URL (ADR-015). Explainers are not offered for download: a copy opened from
+ * disk would run outside the sandbox.
  */
 export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps) {
   const { t } = useTranslation()
@@ -92,10 +95,12 @@ export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps
             <DialogTitle className="truncate">
               {isExplainer ? note.title || attachment.name : attachment.name}
             </DialogTitle>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              {isExplainer ? t('explainer.download') : t('noteFiles.download')}
-            </Button>
+            {!isExplainer && (
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                {t('noteFiles.download')}
+              </Button>
+            )}
           </div>
           <DialogDescription>
             {isExplainer

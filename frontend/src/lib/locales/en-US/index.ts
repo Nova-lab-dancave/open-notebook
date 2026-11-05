@@ -286,7 +286,6 @@ export const enUS = {
     failed: "Could not generate the explainer",
     badge: "Explainer",
     viewerMeta: "Interactive explainer, {{size}}. It runs in a sandbox with no network access.",
-    download: "Download HTML",
   },
   sections: {
     title: "Sections",
