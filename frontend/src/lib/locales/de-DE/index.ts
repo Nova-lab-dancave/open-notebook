@@ -1,9 +1,11 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 // German locale.
 // Translate values only; do not change keys, placeholders or structure.
 
 export const deDE = {
+  meetings,
   common: {
     search: "Suchen...",
     create: "Neu",

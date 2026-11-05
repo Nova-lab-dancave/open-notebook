@@ -1,0 +1,7 @@
+-- Drafts intentionally have no note/artifact/search/embedding relationship.
+DEFINE TABLE IF NOT EXISTS meeting SCHEMALESS;
+DEFINE INDEX IF NOT EXISTS meeting_notebook ON meeting FIELDS notebook_id;
+DEFINE TABLE IF NOT EXISTS meeting_chunk SCHEMALESS;
+DEFINE INDEX IF NOT EXISTS meeting_chunk_sequence ON meeting_chunk FIELDS meeting_id, sequence UNIQUE;
+
+DEFINE FIELD IF NOT EXISTS meeting_id ON TABLE note TYPE option<string>;

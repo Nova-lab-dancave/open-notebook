@@ -1,4 +1,6 @@
+import { meetings } from './meetings'
 export const enUS = {
+  meetings,
   common: {
     search: "Search...",
     create: "New",

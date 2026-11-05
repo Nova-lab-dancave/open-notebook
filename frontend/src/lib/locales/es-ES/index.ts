@@ -1,6 +1,8 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 export const esES = {
+  meetings,
   common: {
     search: "Buscar...",
     create: "Nuevo",

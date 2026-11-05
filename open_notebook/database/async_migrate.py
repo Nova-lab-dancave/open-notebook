@@ -16,7 +16,7 @@ from .repository import db_connection, repo_query
 UPSTREAM_TABLE = "_sbl_migrations"
 NOVA_TABLE = "_nova_migrations"
 NOVA_BASE = 99  # fork migration k (1-based) is file/version NOVA_BASE + k
-NOVA_MIGRATION_NUMBERS = [100, 101, 102, 103, 104]
+NOVA_MIGRATION_NUMBERS = [100, 101, 102, 103, 104, 105]
 
 # Before the split, the fork's migrations were upstream-track versions 26-29
 # (now files 100-103). Databases from that time get those records moved once.

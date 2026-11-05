@@ -1,0 +1,5 @@
+-- Removes drafts and transcripts; approved notes remain.
+REMOVE TABLE IF EXISTS meeting_chunk;
+REMOVE TABLE IF EXISTS meeting;
+
+REMOVE FIELD IF EXISTS meeting_id ON TABLE note;

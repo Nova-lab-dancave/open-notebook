@@ -1,6 +1,8 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 export const jaJP = {
+  meetings,
   common: {
     search: "検索...",
     create: "新規",

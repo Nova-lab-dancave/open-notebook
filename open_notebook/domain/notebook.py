@@ -297,6 +297,15 @@ class Notebook(ObjectModel):
                 deleted_notes += 1
             logger.info(f"Deleted {deleted_notes} notes for notebook {self.id}")
 
+            # Meeting drafts have no artifact links, so remove their private
+            # transcript chunks explicitly before deleting the notebook.
+            await repo_query(
+                "DELETE meeting_chunk WHERE meeting_id IN "
+                "(SELECT VALUE type::string(id) FROM meeting WHERE notebook_id = $notebook_id); "
+                "DELETE meeting WHERE notebook_id = $notebook_id;",
+                {"notebook_id": self.id},
+            )
+
             # Delete artifact relationships
             await repo_query(
                 "DELETE artifact WHERE out = $notebook_id",
@@ -757,6 +766,7 @@ class Note(ObjectModel):
     # True for a generated interactive explainer (Nova-Notes migration 104): its
     # HTML may run scripts in the viewer's script-only sandbox (ADR-015).
     explainer: Optional[bool] = None
+    meeting_id: Optional[str] = None
 
     @field_validator("content")
     @classmethod
@@ -768,6 +778,18 @@ class Note(ObjectModel):
     async def delete(self) -> bool:
         """Delete the note and the original file it was created from, if any."""
         deleted = await super().delete()
+        # Ordinary notes need no extra query. Approved meeting notes carry
+        # their staging ID so deletion also removes their private transcript.
+        if self.meeting_id:
+            await repo_query(
+                "BEGIN TRANSACTION; "
+                "DELETE meeting_chunk WHERE meeting_id = $meeting_id; "
+                "DELETE $id; COMMIT TRANSACTION;",
+                {
+                    "id": ensure_record_id(self.meeting_id),
+                    "meeting_id": self.meeting_id,
+                },
+            )
         if self.attachment_file:
             from open_notebook.utils.note_files import remove_note_file
 
