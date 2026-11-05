@@ -336,6 +336,9 @@ class NoteResponse(BaseModel):
     attachment: Optional[NoteAttachment] = Field(
         None, description="The original file, for notes created by dropping a file"
     )
+    explainer: bool = Field(
+        False, description="True for a generated interactive HTML explainer"
+    )
 
 
 # Embedding API models
@@ -922,3 +925,21 @@ class NotebookDeleteResponse(BaseModel):
     deleted_chat_sessions: int = Field(
         ..., description="Number of chat sessions deleted"
     )
+
+
+# Explainers (interactive HTML dossiers generated from a notebook)
+class ExplainerCreateRequest(BaseModel):
+    mode: Literal["sources"] = Field(
+        "sources",
+        description="What to build from. Only 'sources' (the notebook's saved "
+        "sources) exists so far; 'repo' and 'discover' are planned",
+    )
+    instructions: Optional[str] = Field(
+        None, max_length=2000, description="Optional focus or angle for the reader"
+    )
+
+
+class ExplainerJobResponse(BaseModel):
+    job_id: str
+    status: str
+    notebook_id: str

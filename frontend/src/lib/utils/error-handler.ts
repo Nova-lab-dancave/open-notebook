@@ -37,6 +37,7 @@ export const ERROR_MAP: Record<string, string> = {
   "No answer generated": "apiErrors.noAnswerGenerated",
   "Source has no text content": "apiErrors.sourceHasNoText",
   "There is no text content to transform": "apiErrors.sourceHasNoText",
+  "Add at least one source to this notebook before generating an explainer": "explainer.noSources",
 };
 
 /**

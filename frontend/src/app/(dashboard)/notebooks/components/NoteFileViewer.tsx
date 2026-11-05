@@ -29,13 +29,20 @@ interface NoteFileViewerProps {
  * Pop-up viewer for a note created from a file. PDFs and HTML show the original
  * (fetched with auth into a blob so the request carries the token); DOCX, text
  * and Markdown show the text extracted from the file. HTML is rendered in a
- * fully sandboxed iframe, so scripts in the file can never run.
+ * fully sandboxed iframe, so scripts in the file can never run. Generated
+ * explainers are the one exception: their scripts run (sandbox `allow-scripts`
+ * without `allow-same-origin`, so an opaque origin with no access to the app),
+ * the server-injected CSP blocks subresource requests, and the app's
+ * `frame-src` policy (next.config.ts) stops the frame navigating to an outside
+ * URL (ADR-015). Explainers are not offered for download: a copy opened from
+ * disk would run outside the sandbox.
  */
 export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps) {
   const { t } = useTranslation()
   const attachment = note?.attachment ?? null
   const kind = attachment ? noteFileKind(attachment.type) : null
   const showsOriginal = kind === 'pdf' || kind === 'html'
+  const isExplainer = kind === 'html' && !!note?.explainer
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -85,14 +92,20 @@ export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps
       <DialogContent className="flex h-[85vh] max-w-5xl flex-col gap-3">
         <DialogHeader className="pr-8">
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="truncate">{attachment.name}</DialogTitle>
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              {t('noteFiles.download')}
-            </Button>
+            <DialogTitle className="truncate">
+              {isExplainer ? note.title || attachment.name : attachment.name}
+            </DialogTitle>
+            {!isExplainer && (
+              <Button variant="outline" size="sm" onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                {t('noteFiles.download')}
+              </Button>
+            )}
           </div>
           <DialogDescription>
-            {t('noteFiles.meta', { size: formatFileSize(attachment.size) })}
+            {isExplainer
+              ? t('explainer.viewerMeta', { size: formatFileSize(attachment.size) })
+              : t('noteFiles.meta', { size: formatFileSize(attachment.size) })}
           </DialogDescription>
         </DialogHeader>
 
@@ -109,8 +122,8 @@ export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps
                 // Empty sandbox: no scripts, no same-origin access. Not applied to PDFs
                 // because browsers refuse to show their built-in PDF viewer in a sandbox
                 // (a PDF cannot run page scripts in our origin).
-                {...(kind === 'html' ? { sandbox: '' } : {})}
-                className="h-full w-full bg-white"
+                {...(kind === 'html' ? { sandbox: isExplainer ? 'allow-scripts' : '' } : {})}
+                className={isExplainer ? 'h-full w-full bg-background' : 'h-full w-full bg-white'}
               />
             ) : (
               <div className="flex h-full items-center justify-center">

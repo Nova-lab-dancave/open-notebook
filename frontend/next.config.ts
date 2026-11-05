@@ -8,6 +8,9 @@ const allowedDevOrigins = process.env.NEXT_ALLOWED_DEV_ORIGINS
   ? process.env.NEXT_ALLOWED_DEV_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
   : undefined;
 
+export const FRAME_SRC_POLICY =
+  "frame-src blob: https://www.youtube.com https://www.youtube-nocookie.com";
+
 const nextConfig: NextConfig = {
   // Enable standalone output for optimized Docker deployment
   output: "standalone",
@@ -37,6 +40,21 @@ const nextConfig: NextConfig = {
       {
         source: '/api/:path*',
         destination: `${internalApiUrl}/api/:path*`,
+      },
+    ]
+  },
+
+  // Frames may only load blob: URLs (note-file and explainer viewers) and the
+  // YouTube embed in source details. This is what stops a generated explainer,
+  // which runs scripts in a sandboxed blob: iframe, from navigating its own
+  // frame to an outside URL to send page text away: CSP connect-src and the
+  // sandbox only cover subresource requests (ADR-015). Set on every route
+  // because client-side navigation keeps the first document's policy.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'Content-Security-Policy', value: FRAME_SRC_POLICY }],
       },
     ]
   },

@@ -12,6 +12,7 @@ from open_notebook.exceptions import (
     NotFoundError,
     OpenNotebookError,
 )
+from open_notebook.utils.explainer import EXPLAINER_CSP_HEADER
 from open_notebook.utils.note_files import (
     ALLOWED_TYPES,
     classify_upload,
@@ -48,6 +49,7 @@ def _note_response(note: Note, command_id=None) -> NoteResponse:
         updated=str(note.updated),
         command_id=str(command_id) if command_id else None,
         attachment=attachment,
+        explainer=bool(note.explainer) and attachment is not None,
     )
 
 
@@ -224,7 +226,11 @@ async def get_note_file(
         # Type comes from our allow-list (by extension), not from the upload.
         mime = ALLOWED_TYPES.get(path.suffix.lower(), "application/octet-stream")
         headers = {"X-Content-Type-Options": "nosniff"}
-        if mime == "text/html":
+        if mime == "text/html" and note.explainer:
+            # Generated explainer: scripts may run, but only in an opaque origin
+            # and with subresource requests blocked (ADR-015).
+            headers["Content-Security-Policy"] = EXPLAINER_CSP_HEADER
+        elif mime == "text/html":
             # Uploaded HTML must never run scripts in the app's origin.
             headers["Content-Security-Policy"] = "sandbox"
         return FileResponse(

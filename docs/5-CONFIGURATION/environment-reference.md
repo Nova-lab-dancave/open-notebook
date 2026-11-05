@@ -80,6 +80,8 @@ With Docker Compose, `SURREAL_USER` and `SURREAL_PASSWORD` are the two values yo
 | `FRONTEND_BIND_HOST` | `0.0.0.0` | Container | Interface the Next.js server binds to inside the container. Replaces `HOSTNAME`, which runtimes such as Podman overwrite |
 | `NEXT_ALLOWED_DEV_ORIGINS` | none | Frontend (dev server only) | Comma-separated hostnames allowed to reach `npm run dev` from another machine (LAN IP, custom hostname) |
 | `OPEN_NOTEBOOK_MAX_UPLOAD_SIZE_MB` | `100` | API | Largest request body the API accepts. Larger requests get `413 Request body exceeds the maximum allowed upload size`. By default the browser uploads straight to the API (port 5055), so this is the app's only limit. When `API_URL` points at the frontend's own URL, uploads go through the Next.js `/api/*` forwarding instead, which is capped at 100 MB in the build. A reverse proxy's own limit (nginx `client_max_body_size`) also applies |
+| `OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS` | `16000` | Worker | Output budget for one generated explainer page. Lower it if your default chat model has a smaller output limit; raise it if explainers are cut off before they finish |
+| `OPEN_NOTEBOOK_EXPLAINER_CONTEXT_CHARS` | `240000` | Worker | Characters of source text (about 60k tokens) sent to the model for an explainer, shared between the notebook's sources. Each source is cut to its share, with a note saying so |
 
 ### Outbound proxy
 
