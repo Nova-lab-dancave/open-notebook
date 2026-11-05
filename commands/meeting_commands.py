@@ -69,10 +69,10 @@ async def summarize_meeting_command(
         result = parse_summary(extract_text_content(reply.content), meeting.transcript)
         await repo_query(
             "UPDATE $id SET summary = $summary, actions = $actions, summary_error = '', revision += 1 "
-            "WHERE status = 'review' AND summary_token = $token",
+            "WHERE status = 'review' AND summary_token = $summary_token",
             {
                 "id": ensure_record_id(data.meeting_id),
-                "token": data.token,
+                "summary_token": data.token,
                 "summary": result.summary,
                 "actions": [a.model_dump() for a in result.actions],
             },
@@ -83,10 +83,10 @@ async def summarize_meeting_command(
             "Meeting summary failed for {}; transcript retained", data.meeting_id
         )
         await repo_query(
-            "UPDATE $id SET summary_error = $error WHERE status = 'review' AND summary_token = $token",
+            "UPDATE $id SET summary_error = $error WHERE status = 'review' AND summary_token = $summary_token",
             {
                 "id": ensure_record_id(data.meeting_id),
-                "token": data.token,
+                "summary_token": data.token,
                 "error": "Summary generation failed. Check your default chat model and retry; the transcript is retained.",
             },
         )

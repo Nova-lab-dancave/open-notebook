@@ -115,3 +115,87 @@ async def test_database_meeting_lifecycle_and_rollback(monkeypatch):
         # Namespace is generated locally, never user input.
         async with db_connection() as connection:
             await connection.query(f"REMOVE NAMESPACE {namespace}")
+
+
+@pytest.mark.asyncio
+async def test_database_summary_queue_and_worker_write_back(monkeypatch):
+    """The summary path must run against a real SurrealDB.
+
+    SurrealDB rejects a bound variable named ``$token`` (it is a protected
+    name), which the mocked unit tests cannot see: every finish then ended in a
+    500 and no summary was ever written.
+    """
+    from commands.meeting_commands import (
+        SummarizeMeetingInput,
+        summarize_meeting_command,
+    )
+
+    namespace = "meeting_test_" + uuid4().hex
+    monkeypatch.setenv("SURREAL_URL", os.environ["MEETINGS_TEST_DATABASE_URL"])
+    monkeypatch.setenv("SURREAL_NAMESPACE", namespace)
+    monkeypatch.setenv("SURREAL_DATABASE", "test")
+    transcript = "[00:00] Priya will send the budget to finance by Friday."
+    quote = "Priya will send the budget to finance by Friday."
+    reply = (
+        '{"summary": "Budget follow-up agreed.", "actions": [{"text": "Send budget",'
+        f' "owner": "Priya", "due": "Friday", "evidence": "{quote}", "done": false}}]}}'
+    )
+    try:
+        await AsyncMigrationManager().run_migration_up()
+        notebook = Notebook(name="Summary test", description="")
+        await notebook.save()
+        meeting = Meeting(
+            notebook_id=str(notebook.id),
+            title="Sync",
+            status="review",
+            transcript=transcript,
+        )
+        await meeting.save()
+
+        with patch.object(
+            meetings.CommandService,
+            "submit_command_job",
+            AsyncMock(return_value="command:job1"),
+        ) as submit:
+            await meetings.queue_summary(await Meeting.get(str(meeting.id)))
+        queued = await Meeting.get(str(meeting.id))
+        assert queued.summary_token
+        assert queued.summary_job == "command:job1"
+        assert submit.await_args is not None
+        assert submit.await_args.args[2]["token"] == queued.summary_token
+
+        model = AsyncMock()
+        model.ainvoke.return_value = AsyncMock(content=reply)
+        with patch(
+            "commands.meeting_commands.provision_langchain_model",
+            AsyncMock(return_value=model),
+        ):
+            result = await summarize_meeting_command(
+                SummarizeMeetingInput(
+                    meeting_id=str(meeting.id), token=queued.summary_token
+                )
+            )
+        assert result.success
+        done = await Meeting.get(str(meeting.id))
+        assert done.summary == "Budget follow-up agreed."
+        assert done.actions[0].owner == "Priya"
+        assert done.revision == queued.revision + 1
+
+        # A failing provider must record the error on the draft, not raise.
+        model.ainvoke.side_effect = RuntimeError("provider down")
+        with patch(
+            "commands.meeting_commands.provision_langchain_model",
+            AsyncMock(return_value=model),
+        ):
+            result = await summarize_meeting_command(
+                SummarizeMeetingInput(
+                    meeting_id=str(meeting.id), token=queued.summary_token
+                )
+            )
+        assert not result.success
+        failed = await Meeting.get(str(meeting.id))
+        assert failed.summary_error
+        assert failed.transcript == transcript
+    finally:
+        async with db_connection() as connection:
+            await connection.query(f"REMOVE NAMESPACE {namespace}")

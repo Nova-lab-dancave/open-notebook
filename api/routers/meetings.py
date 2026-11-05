@@ -192,8 +192,8 @@ async def queue_summary(meeting: Meeting):
             )
     token = uuid4().hex
     await repo_query(
-        "UPDATE $id SET summary_token = $token, summary_error = '' WHERE status = 'review'",
-        {"id": ensure_record_id(str(meeting.id)), "token": token},
+        "UPDATE $id SET summary_token = $summary_token, summary_error = '' WHERE status = 'review'",
+        {"id": ensure_record_id(str(meeting.id)), "summary_token": token},
     )
     try:
         job_id = await CommandService.submit_command_job(
@@ -203,17 +203,21 @@ async def queue_summary(meeting: Meeting):
         )
     except Exception:
         await repo_query(
-            "UPDATE $id SET summary_error = $error WHERE summary_token = $token",
+            "UPDATE $id SET summary_error = $error WHERE summary_token = $summary_token",
             {
                 "id": ensure_record_id(str(meeting.id)),
-                "token": token,
+                "summary_token": token,
                 "error": "Could not queue summary. Transcript saved; check the worker and retry.",
             },
         )
         return
     await repo_query(
-        "UPDATE $id SET summary_job = $job WHERE summary_token = $token",
-        {"id": ensure_record_id(str(meeting.id)), "token": token, "job": job_id},
+        "UPDATE $id SET summary_job = $job WHERE summary_token = $summary_token",
+        {
+            "id": ensure_record_id(str(meeting.id)),
+            "summary_token": token,
+            "job": job_id,
+        },
     )
 
 
