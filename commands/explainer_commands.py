@@ -39,6 +39,9 @@ class GenerateExplainerInput(CommandInput):
     notebook_id: str
     mode: str = "sources"
     instructions: Optional[str] = None
+    # ISO time the API queued the job; lets the notes pane list and age jobs
+    # (surreal-commands records carry no timestamps of their own).
+    requested_at: Optional[str] = None
 
 
 class GenerateExplainerOutput(CommandOutput):

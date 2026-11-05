@@ -1,5 +1,6 @@
 """Interactive HTML explainers: output parsing, hardening, the job and the API."""
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -201,6 +202,8 @@ def test_create_explainer_submits_a_job(client):
     assert submit.await_args is not None
     args = submit.await_args.args
     assert args[1] == "generate_explainer"
+    requested_at = args[2].pop("requested_at")
+    assert datetime.fromisoformat(requested_at).tzinfo is not None
     assert args[2] == {
         "notebook_id": "notebook:n1",
         "mode": "sources",
@@ -256,3 +259,91 @@ def test_harden_strips_resource_hints_and_refresh():
     for gone in ("x.evil", "leak.evil", "y.evil", "z.evil"):
         assert gone not in hardened
     assert "rel='stylesheet'" in hardened and "Content-Security-Policy" in hardened
+
+
+def _cmd(cid, status, requested_at, result=None, error=""):
+    return {
+        "id": cid,
+        "status": status,
+        "args": {"notebook_id": "notebook:n1", "requested_at": requested_at},
+        "result": result,
+        "error_message": error,
+    }
+
+
+def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
+    nb, _ = _notebook_with_sources()
+    now = datetime.now(timezone.utc)
+    recent = (now - timedelta(minutes=5)).isoformat()
+    old = (now - timedelta(days=2)).isoformat()
+    rows = [
+        _cmd(
+            "command:done",
+            "completed",
+            recent,
+            {"success": True, "note_id": "note:1", "title": "Tides"},
+        ),
+        _cmd(
+            "command:nomodel",
+            "completed",
+            (now - timedelta(minutes=1)).isoformat(),
+            {"success": False, "error_message": "No model configured"},
+        ),
+        _cmd("command:crash", "failed", recent, None, "boom"),
+        _cmd("command:queued", "new", now.isoformat()),
+        _cmd(
+            "command:oldfail",
+            "completed",
+            old,
+            {"success": False, "error_message": "old"},
+        ),
+        _cmd("command:oldqueued", "new", old),
+        {
+            "id": "command:legacy",
+            "status": "completed",
+            "args": {"notebook_id": "notebook:n1"},
+            "result": {},
+        },
+    ]
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch(
+            "api.routers.explainers.repo_query", new=AsyncMock(return_value=rows)
+        ) as q,
+    ):
+        response = client.get("/api/notebooks/notebook:n1/explainers/jobs")
+    assert response.status_code == 200
+    jobs = {j["job_id"]: j for j in response.json()}
+    assert set(jobs) == {
+        "command:done",
+        "command:nomodel",
+        "command:crash",
+        "command:queued",
+        "command:oldqueued",
+    }
+    assert (
+        jobs["command:done"]["status"] == "completed"
+        and jobs["command:done"]["note_id"] == "note:1"
+    )
+    assert jobs["command:nomodel"] == {
+        **jobs["command:nomodel"],
+        "status": "failed",
+        "error_message": "No model configured",
+    }
+    assert jobs["command:crash"]["error_message"] == "boom"
+    assert jobs["command:queued"]["status"] == "queued"
+    assert response.json()[0]["job_id"] == "command:queued"  # newest first
+    assert q.await_args is not None and q.await_args.args[1] == {
+        "notebook_id": "notebook:n1"
+    }
+
+
+def test_explainer_jobs_for_missing_notebook_is_404(client):
+    from open_notebook.exceptions import NotFoundError
+
+    with patch.object(
+        Notebook, "get", new=AsyncMock(side_effect=NotFoundError("Notebook not found"))
+    ):
+        assert (
+            client.get("/api/notebooks/notebook:x/explainers/jobs").status_code == 404
+        )

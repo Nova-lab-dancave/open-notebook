@@ -943,3 +943,12 @@ class ExplainerJobResponse(BaseModel):
     job_id: str
     status: str
     notebook_id: str
+
+
+class ExplainerJobSummary(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "completed", "failed"]
+    requested_at: Optional[str] = None
+    note_id: Optional[str] = None
+    title: Optional[str] = None
+    error_message: Optional[str] = None
