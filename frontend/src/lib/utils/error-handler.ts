@@ -38,6 +38,7 @@ export const ERROR_MAP: Record<string, string> = {
   "Source has no text content": "apiErrors.sourceHasNoText",
   "There is no text content to transform": "apiErrors.sourceHasNoText",
   "Add at least one source to this notebook before generating an explainer": "explainer.noSources",
+  "Add at least one source to this notebook before generating an infographic": "explainer.noSources",
 };
 
 /**

@@ -1,7 +1,18 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { Bot, Download, FileText, MoreVertical, Presentation, StickyNote, Trash2, User } from 'lucide-react'
+import {
+  Bot,
+  Download,
+  FileText,
+  ImageIcon,
+  MoreVertical,
+  Presentation,
+  StickyNote,
+  Trash2,
+  User,
+} from 'lucide-react'
 
 import { ContextToggle } from '@/components/common/ContextToggle'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { notesApi } from '@/lib/api/notes'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { NoteResponse } from '@/lib/types/api'
 import { getDateLocale } from '@/lib/utils/date-locale'
@@ -36,7 +48,7 @@ interface NoteCardProps {
   onDownload: (note: NoteResponse) => void
 }
 
-/** One note, file or explainer as a square card in the notes grid. */
+/** One note, file, explainer or infographic as a square card in the notes grid. */
 export function NoteCard({
   note,
   contextMode,
@@ -47,11 +59,14 @@ export function NoteCard({
 }: NoteCardProps) {
   const { t, language } = useTranslation()
   const isExplainer = !!note.attachment && !!note.explainer
+  const isInfographic = !!note.attachment && !!note.infographic
   // The notebook notes list omits note bodies, so most cards have no text
   // preview: they show their type as a large icon instead (thumbnails later).
   const [PreviewIcon, previewColor] = isExplainer
     ? [Presentation, 'text-teal']
-    : note.attachment
+    : isInfographic
+      ? [ImageIcon, 'text-teal']
+      : note.attachment
       ? [FileText, 'text-sage']
       : note.note_type === 'ai'
         ? [Bot, 'text-teal']
@@ -70,6 +85,13 @@ export function NoteCard({
               <Presentation className="h-4 w-4 shrink-0 text-teal" />
               <Badge variant="secondary" className="truncate text-xs">
                 {t('explainer.badge')}
+              </Badge>
+            </>
+          ) : isInfographic ? (
+            <>
+              <ImageIcon className="h-4 w-4 shrink-0 text-teal" />
+              <Badge variant="secondary" className="truncate text-xs">
+                {t('infographic.badge')}
               </Badge>
             </>
           ) : note.attachment ? (
@@ -153,7 +175,9 @@ export function NoteCard({
       )}
 
       <div className="mt-1 min-h-0 flex-1 overflow-hidden">
-        {note.content ? (
+        {isInfographic ? (
+          <InfographicThumbnail noteId={note.id} fallback={<PreviewIcon className={`h-10 max-h-full w-10 opacity-40 ${previewColor}`} />} />
+        ) : note.content ? (
           <p className="line-clamp-4 text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {note.content}
           </p>
@@ -175,6 +199,44 @@ export function NoteCard({
           <span className="shrink-0">{formatFileSize(note.attachment.size)}</span>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The infographic itself, fetched with auth into a blob URL and shown as an
+ * `<img>` (an SVG image can never run scripts).
+ */
+function InfographicThumbnail({ noteId, fallback }: { noteId: string; fallback: React.ReactNode }) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrl: string | null = null
+    notesApi
+      .fetchFile(noteId)
+      .then((data) => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(new Blob([data], { type: 'image/svg+xml' }))
+        setUrl(objectUrl)
+      })
+      .catch(() => {
+        // Keep the icon.
+      })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [noteId])
+
+  return (
+    <div className="flex h-full items-center justify-center overflow-hidden rounded-sm" aria-hidden>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a local blob URL, not an optimisable asset
+        <img src={url} alt="" className="h-full w-full object-cover object-top" data-testid="infographic-thumbnail" />
+      ) : (
+        fallback
+      )}
     </div>
   )
 }

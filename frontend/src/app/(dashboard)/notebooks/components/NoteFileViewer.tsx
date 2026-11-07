@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, ImageDown, Maximize2, Minimize2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -17,7 +17,15 @@ import { notesApi } from '@/lib/api/notes'
 import { useNote } from '@/lib/hooks/use-notes'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import type { NoteResponse } from '@/lib/types/api'
-import { formatFileSize, noteFileKind, saveNoteFile } from '@/lib/utils/note-files'
+import {
+  formatFileSize,
+  noteFileKind,
+  saveBlob,
+  saveNoteFile,
+  svgToPng,
+  withExtension,
+} from '@/lib/utils/note-files'
+import { cn } from '@/lib/utils'
 
 interface NoteFileViewerProps {
   note: NoteResponse | null
@@ -36,13 +44,19 @@ interface NoteFileViewerProps {
  * `frame-src` policy (next.config.ts) stops the frame navigating to an outside
  * URL (ADR-015). Explainers are not offered for download: a copy opened from
  * disk would run outside the sandbox.
+ *
+ * Generated infographics (sanitised SVG, ADR-016) open full page as an `<img>`,
+ * where SVG can never run scripts, and download as SVG or PNG.
  */
 export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps) {
   const { t } = useTranslation()
   const attachment = note?.attachment ?? null
   const kind = attachment ? noteFileKind(attachment.type) : null
-  const showsOriginal = kind === 'pdf' || kind === 'html'
+  const isInfographic = kind === 'svg' && !!note?.infographic
+  const showsOriginal = kind === 'pdf' || kind === 'html' || isInfographic
   const isExplainer = kind === 'html' && !!note?.explainer
+  const [actualSize, setActualSize] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -55,6 +69,7 @@ export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps
     let url: string | null = null
     setBlobUrl(null)
     setFailed(false)
+    setActualSize(false)
     notesApi
       .fetchFile(noteId)
       .then((data) => {
@@ -85,7 +100,83 @@ export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps
     }
   }
 
+  const handleDownloadPng = async () => {
+    if (!note || !attachment) return
+    setExporting(true)
+    try {
+      const png = await svgToPng(await notesApi.fetchFile(note.id))
+      saveBlob(png, withExtension(attachment.name, '.png'))
+    } catch {
+      setFailed(true)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!note || !attachment) return null
+
+  if (isInfographic) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="flex h-[100dvh] w-screen max-w-none flex-col gap-3 rounded-none border-0 p-3 sm:max-w-none sm:p-4"
+          data-testid="infographic-viewer"
+        >
+          <DialogHeader className="pr-8">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <DialogTitle className="min-w-0 truncate">{note.title || attachment.name}</DialogTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setActualSize((value) => !value)}
+                  aria-pressed={actualSize}
+                  title={actualSize ? t('infographic.fitToScreen') : t('infographic.actualSize')}
+                >
+                  {actualSize ? <Minimize2 className="mr-2 h-4 w-4" /> : <Maximize2 className="mr-2 h-4 w-4" />}
+                  {actualSize ? t('infographic.fitToScreen') : t('infographic.actualSize')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Download className="mr-2 h-4 w-4" />
+                  {t('infographic.downloadSvg')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => void handleDownloadPng()} disabled={exporting}>
+                  <ImageDown className="mr-2 h-4 w-4" />
+                  {t('infographic.downloadPng')}
+                </Button>
+              </div>
+            </div>
+            <DialogDescription>
+              {t('infographic.viewerMeta', { size: formatFileSize(attachment.size) })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className={cn('min-h-0 flex-1 rounded-md border bg-muted', actualSize ? 'overflow-auto' : 'overflow-hidden')}>
+            {failed ? (
+              <p role="alert" className="p-6 text-sm text-destructive">
+                {t('noteFiles.loadFailed')}
+              </p>
+            ) : blobUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a local blob URL, not an optimisable asset
+              <img
+                src={blobUrl}
+                alt={note.title || attachment.name}
+                onClick={() => setActualSize((value) => !value)}
+                className={cn(
+                  'mx-auto block',
+                  actualSize ? 'max-w-none cursor-zoom-out' : 'h-full w-full cursor-zoom-in object-contain'
+                )}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

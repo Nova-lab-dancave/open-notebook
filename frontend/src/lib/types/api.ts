@@ -71,6 +71,8 @@ export interface NoteResponse {
   attachment?: NoteAttachment | null
   /** True for a generated interactive HTML explainer (its scripts may run in the viewer's sandbox). */
   explainer?: boolean
+  /** True for a generated static SVG infographic (shown as an image, downloadable). */
+  infographic?: boolean
 }
 
 export interface SourceListResponse {
@@ -338,4 +340,15 @@ export interface ExplainerJob {
   note_id: string | null
   title: string | null
   error_message: string | null
+}
+
+// Infographics: static SVG posters generated into a notebook's notes. Jobs use
+// the explainer job shapes (same endpoints pattern, same statuses).
+export type InfographicAspect = 'portrait' | 'landscape' | 'square'
+
+export interface CreateInfographicRequest {
+  style: string
+  layout: string
+  aspect: InfographicAspect
+  instructions?: string
 }

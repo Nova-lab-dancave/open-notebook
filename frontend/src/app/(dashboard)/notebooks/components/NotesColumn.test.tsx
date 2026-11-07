@@ -45,6 +45,22 @@ vi.mock('@/lib/hooks/use-explainers', () => ({
   useExplainerJobs: () => jobsState,
 }))
 
+const infographicState = { start: vi.fn(), isStarting: false }
+const infographicJobsState: { jobs: ExplainerJob[]; dismiss: ReturnType<typeof vi.fn>; isLoading: boolean } = {
+  jobs: [],
+  dismiss: vi.fn(),
+  isLoading: false,
+}
+vi.mock('@/lib/hooks/use-infographics', () => ({
+  useGenerateInfographic: () => infographicState,
+  useInfographicJobs: () => infographicJobsState,
+}))
+
+const fetchFile = vi.fn()
+vi.mock('@/lib/api/notes', () => ({
+  notesApi: { fetchFile: (...a: unknown[]) => fetchFile(...a) },
+}))
+
 const toast = vi.fn()
 vi.mock('@/lib/hooks/use-toast', () => ({
   useToast: () => ({ toast }),
@@ -262,5 +278,43 @@ describe('NotesColumn', () => {
     renderNotes([])
     expect(screen.getByText('notebooks.noNotesYet')).toBeInTheDocument()
     expect(screen.queryByTestId('notes-grid')).toBeNull()
+  })
+
+  it('opens the Generate Infographic dialog from its button', () => {
+    renderNotes([existingNote])
+    fireEvent.click(screen.getByRole('button', { name: 'infographic.generate' }))
+    expect(screen.getByText('infographic.dialogDesc')).toBeInTheDocument()
+  })
+
+  it('marks infographics, shows the image as a thumbnail and opens the viewer', async () => {
+    fetchFile.mockResolvedValue(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>']))
+    const createObjectURL = vi.fn(() => 'blob:thumb')
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+    renderNotes([
+      {
+        ...existingNote,
+        id: 'note:info',
+        title: 'Tides at a glance',
+        note_type: 'ai',
+        infographic: true,
+        attachment: { name: 'Tides.svg', type: 'image/svg+xml', size: 4096 },
+      },
+    ])
+    expect(screen.getByText('infographic.badge')).toBeInTheDocument()
+    expect(await screen.findByTestId('infographic-thumbnail')).toHaveAttribute('src', 'blob:thumb')
+    expect(fetchFile).toHaveBeenCalledWith('note:info')
+    fireEvent.click(screen.getByText('Tides at a glance'))
+    expect(screen.getByTestId('file-viewer')).toHaveAttribute('data-note-id', 'note:info')
+  })
+
+  it('shows infographic jobs with their own wording', () => {
+    infographicJobsState.jobs = [
+      { job_id: 'command:i', status: 'running', requested_at: new Date().toISOString(), note_id: null, title: null, error_message: null },
+    ]
+    renderNotes([])
+    expect(screen.getByText('infographic.generatingOne')).toBeInTheDocument()
+    expect(screen.queryByText('notebooks.noNotesYet')).toBeNull()
+    infographicJobsState.jobs = []
   })
 })

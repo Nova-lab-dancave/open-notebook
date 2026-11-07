@@ -4,6 +4,7 @@ import {
   isDraggingFiles,
   isSupportedNoteFile,
   noteFileKind,
+  withExtension,
 } from './note-files'
 
 describe('isSupportedNoteFile', () => {
@@ -43,5 +44,16 @@ describe('isDraggingFiles', () => {
     expect(isDraggingFiles({ dataTransfer: { types: ['Files'] } as unknown as DataTransfer })).toBe(true)
     expect(isDraggingFiles({ dataTransfer: { types: ['text/plain'] } as unknown as DataTransfer })).toBe(false)
     expect(isDraggingFiles({ dataTransfer: null })).toBe(false)
+  })
+})
+
+describe('infographic helpers', () => {
+  it('treats SVG as its own kind', () => {
+    expect(noteFileKind('image/svg+xml')).toBe('svg')
+  })
+
+  it('swaps the file extension for the PNG download', () => {
+    expect(withExtension('Tides-at-a-glance.svg', '.png')).toBe('Tides-at-a-glance.png')
+    expect(withExtension('.svg', '.png')).toBe('infographic.png')
   })
 })

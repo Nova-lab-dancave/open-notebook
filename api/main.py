@@ -33,6 +33,7 @@ from api.routers import (
     episode_profiles,
     explainers,
     folders,
+    infographics,
     insights,
     languages,
     meetings,
@@ -395,6 +396,7 @@ app.include_router(transformations.router, prefix="/api", tags=["transformations
 app.include_router(notes.router, prefix="/api", tags=["notes"])
 app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(explainers.router, prefix="/api", tags=["explainers"])
+app.include_router(infographics.router, prefix="/api", tags=["infographics"])
 app.include_router(embedding.router, prefix="/api", tags=["embedding"])
 app.include_router(
     embedding_rebuild.router, prefix="/api/embeddings", tags=["embeddings"]

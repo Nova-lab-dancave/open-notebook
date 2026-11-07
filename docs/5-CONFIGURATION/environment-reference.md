@@ -82,6 +82,8 @@ With Docker Compose, `SURREAL_USER` and `SURREAL_PASSWORD` are the two values yo
 | `OPEN_NOTEBOOK_MAX_UPLOAD_SIZE_MB` | `100` | API | Largest request body the API accepts. Larger requests get `413 Request body exceeds the maximum allowed upload size`. By default the browser uploads straight to the API (port 5055), so this is the app's only limit. When `API_URL` points at the frontend's own URL, uploads go through the Next.js `/api/*` forwarding instead, which is capped at 100 MB in the build. A reverse proxy's own limit (nginx `client_max_body_size`) also applies |
 | `OPEN_NOTEBOOK_EXPLAINER_MAX_TOKENS` | `48000` | Worker | Output budget for one generated explainer page. A full page is ~20-30k tokens, plus the model's hidden reasoning if it has any, which shares the budget. Lower it if your default chat model rejects large output limits (some small or OpenAI-compatible models cap at 8-32k); raise it if explainers are still cut off |
 | `OPEN_NOTEBOOK_EXPLAINER_CONTEXT_CHARS` | `240000` | Worker | Characters of source text (about 60k tokens) sent to the model for an explainer, shared between the notebook's sources. Each source is cut to its share, with a note saying so |
+| `OPEN_NOTEBOOK_INFOGRAPHIC_MAX_TOKENS` | `32000` | Worker | Output budget for one generated infographic (SVG). A dense poster is ~10-20k tokens plus any hidden reasoning. Lower it if your default chat model rejects large output limits; raise it if infographics are cut off |
+| `OPEN_NOTEBOOK_INFOGRAPHIC_CONTEXT_CHARS` | `160000` | Worker | Characters of source text sent to the model for an infographic, shared between the notebook's sources |
 
 ### Outbound proxy
 
