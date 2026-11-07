@@ -339,6 +339,9 @@ class NoteResponse(BaseModel):
     explainer: bool = Field(
         False, description="True for a generated interactive HTML explainer"
     )
+    infographic: bool = Field(
+        False, description="True for a generated static SVG infographic"
+    )
 
 
 # Embedding API models
@@ -952,3 +955,16 @@ class ExplainerJobSummary(BaseModel):
     note_id: Optional[str] = None
     title: Optional[str] = None
     error_message: Optional[str] = None
+
+
+# Infographics (static SVG posters generated from a notebook's sources). Jobs
+# are reported with the same shapes as explainer jobs.
+class InfographicCreateRequest(BaseModel):
+    style: str = Field("clean-editorial", description="Visual style id")
+    layout: str = Field(
+        "auto", description="Layout id, or 'auto' to let the model pick"
+    )
+    aspect: Literal["portrait", "landscape", "square"] = Field("portrait")
+    instructions: Optional[str] = Field(
+        None, max_length=2000, description="Optional focus or angle for the reader"
+    )

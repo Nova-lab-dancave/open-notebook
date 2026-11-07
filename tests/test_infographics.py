@@ -1,0 +1,466 @@
+"""Infographics: SVG extraction and sanitising, the job, the API, the file."""
+
+import re
+from datetime import datetime
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from commands.infographic_commands import (
+    GenerateInfographicInput,
+    generate_infographic_command,
+    run_infographic,
+)
+from open_notebook.domain.notebook import Note, Notebook, Source
+from open_notebook.exceptions import IncompleteGenerationError
+from open_notebook.utils import infographic, note_files
+
+SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">'
+    "<title>Tides &amp; the moon</title>"
+    '<defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/>'
+    "</linearGradient></defs>"
+    '<rect width="1080" height="1920" fill="url(#g)"/>'
+    '<text x="48" y="120" font-size="64">Tides<tspan x="48" dy="70">explained'
+    "</tspan></text>"
+    '<text x="48" y="400">The moon pulls the sea.</text>'
+    "</svg>"
+)
+
+
+@pytest.fixture
+def client():
+    from api.main import app
+
+    return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def files_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(note_files, "NOTE_FILES_FOLDER", str(tmp_path))
+    return tmp_path
+
+
+# --- extracting and sanitising ------------------------------------------------
+
+
+def test_extract_svg_accepts_bare_fenced_and_chatty_replies():
+    assert infographic.extract_svg(SVG) == SVG
+    assert infographic.extract_svg(f"```svg\n{SVG}\n```") == SVG
+    assert infographic.extract_svg(f"Here you go:\n\n{SVG}\n\nEnjoy!") == SVG
+
+
+@pytest.mark.parametrize("reply", ["", "No image here", "```svg\n<svg><rect/>"])
+def test_extract_svg_rejects_missing_or_cut_off_images(reply):
+    with pytest.raises(IncompleteGenerationError):
+        infographic.extract_svg(reply)
+
+
+def test_sanitize_keeps_drawing_and_local_references():
+    clean = infographic.sanitize_svg(SVG)
+    assert 'fill="url(#g)"' in clean and "<linearGradient" in clean
+    assert "explained</tspan>" in clean
+    assert 'width="1080"' in clean and 'height="1920"' in clean
+
+
+def test_sanitize_strips_everything_that_could_run_or_load():
+    evil = (
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        'xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" '
+        'onload="alert(1)">'
+        "<script>alert(2)</script>"
+        '<foreignObject><div xmlns="http://www.w3.org/1999/xhtml">x</div>'
+        "</foreignObject>"
+        '<a href="https://evil.example"><text>link</text></a>'
+        '<image href="https://evil.example/p.png"/>'
+        '<use xlink:href="https://evil.example/s.svg#x"/>'
+        '<use href="#ok"/>'
+        '<animate attributeName="href" to="javascript:alert(3)"/>'
+        '<rect fill="url(https://evil.example/t)" style="fill:red"/>'
+        '<circle style="background:url(https://evil.example)"/>'
+        "<style>@import url(https://evil.example/x.css);</style>"
+        "<style>.a{fill:url(#g)}</style>"
+        "</svg>"
+    )
+    clean = infographic.sanitize_svg(evil)
+    lowered = clean.lower()
+    for bad in ("script", "alert", "foreignobject", "evil.example", "<a ", "<image"):
+        assert bad not in lowered, bad
+    assert "onload" not in lowered and "animate" not in lowered
+    assert 'href="#ok"' in clean and ".a{fill:url(#g)}" in clean
+    assert 'style="fill:red"' in clean  # harmless inline style kept
+
+
+def _svg_with(inner: str = "", root_attrs: str = "") -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" '
+        f"{root_attrs}>{inner}<text>kept</text></svg>"
+    )
+
+
+# CSS can spell url( and @import with escapes (\\75rl( is url(, @\\69mport is @import)
+# and has URL forms with no url( at all (image-set with a string). None of these
+# is caught by matching the literal text, and an SVG saved with Download SVG and
+# opened in a browser has no CSP, so each one made the browser contact the host.
+# Explicit ids: pytest would otherwise build the test name from the markup.
+HOSTILE_CSS = [
+    pytest.param(
+        _svg_with('<style>@\\69mport "https://evil.example/a";</style>'),
+        id="escaped-import-string",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>svg{background-image:\\75rl(https://evil.example/b)}</style>"
+        ),
+        id="escaped-url-in-style-element",
+    ),
+    pytest.param(
+        _svg_with(root_attrs='style="background-image:\\75rl(https://evil.example/c)"'),
+        id="escaped-url-in-style-attribute",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:image-set('https://evil.example/d' 1x)\""
+        ),
+        id="image-set-string",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:-webkit-image-set('https://evil.example/e' 1x)\""
+        ),
+        id="webkit-image-set-string",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:image('https://evil.example/f')\""
+        ),
+        id="image-function",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>@font-face{font-family:x;src:\\75rl(https://evil.example/g)}</style>"
+        ),
+        id="escaped-url-in-font-face",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>@font-face{font-family:x;src:url(https://evil.example/h)}</style>"
+        ),
+        id="plain-url-in-font-face",
+    ),
+    pytest.param(
+        _svg_with("<style>@namespace url(https://evil.example/i);</style>"),
+        id="namespace-rule",
+    ),
+]
+
+
+@pytest.mark.parametrize("markup", HOSTILE_CSS)
+def test_sanitize_strips_css_that_loads_by_escape_or_string(markup):
+    clean = infographic.sanitize_svg(markup)
+    assert "evil.example" not in clean
+    assert "\\" not in clean  # no CSS escapes survive in any style text or attribute
+    assert "<text>kept</text>" in clean  # the drawing itself is untouched
+
+
+def test_sanitize_keeps_ordinary_styling():
+    svg = _svg_with(
+        "<style>.t{fill:#0f766e;font-family:Inter,'Segoe UI',Helvetica,sans-serif;"
+        "font-weight:700}.b{stroke:#111;stroke-width:2}"
+        "@keyframes p{from{opacity:0}to{opacity:1}}</style>"
+        '<defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/>'
+        '</linearGradient><filter id="f"><feGaussianBlur stdDeviation="2"/></filter>'
+        "</defs>"
+        '<rect class="b" fill="url(#g)" filter="url(#f)" width="5" height="5"/>'
+        '<rect style="fill:#e07a2f;opacity:.8;stroke:none" width="5" height="5"/>'
+    )
+    clean = infographic.sanitize_svg(svg)
+    assert ".t{fill:#0f766e;font-family:Inter,'Segoe UI',Helvetica,sans-serif" in clean
+    assert "@keyframes p" in clean
+    assert 'fill="url(#g)"' in clean and 'filter="url(#f)"' in clean
+    assert 'style="fill:#e07a2f;opacity:.8;stroke:none"' in clean
+
+
+def test_sanitize_repairs_html_entities_and_bare_ampersands():
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+        "<text>R&D&nbsp;costs &mdash; &bogus; &lt;5%</text></svg>"
+    )
+    clean = infographic.sanitize_svg(svg)
+    assert infographic.svg_text(clean) == "R&D costs \u2014 &bogus; <5%"
+
+
+def test_sanitize_refuses_entities_and_broken_xml():
+    bomb = (
+        '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaa">]>'
+        '<svg xmlns="http://www.w3.org/2000/svg">&a;</svg>'
+    )
+    clean = infographic.sanitize_svg(bomb)  # DOCTYPE dropped, &a; kept as text
+    assert "<!ENTITY" not in clean and "aaaa" not in clean
+    with pytest.raises(IncompleteGenerationError):
+        infographic.sanitize_svg("<svg><rect></svg>")
+    with pytest.raises(IncompleteGenerationError):
+        infographic.sanitize_svg("<html><body/></html>")
+
+
+def _svg(body: str) -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        'xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">'
+        f"{body}</svg>"
+    )
+
+
+def test_sanitize_caps_heavy_filter_values():
+    clean = infographic.sanitize_svg(
+        _svg(
+            '<filter id="f" x="-5000%" y="-10%" width="9000%" height="120%">'
+            '<feGaussianBlur stdDeviation="500 2"/>'
+            '<feDropShadow stdDeviation="1e9"/>'
+            '<feMorphology radius="300"/>'
+            '<feTurbulence numOctaves="50"/>' + "<feOffset/>" * 10 + "</filter>"
+            '<filter id="u" filterUnits="userSpaceOnUse" x="0" y="0" '
+            'width="100000" height="100000"><feFlood/></filter>'
+        )
+    )
+    assert 'stdDeviation="20 2"' in clean and 'stdDeviation="20"' in clean
+    assert 'radius="8"' in clean and 'numOctaves="4"' in clean
+    assert 'x="-100%"' in clean and 'width="300%"' in clean
+    assert 'y="-10%"' in clean and 'height="120%"' in clean  # sane: untouched
+    assert clean.count("<feOffset") == 8 - 4  # 8 primitives per filter
+    assert "userSpaceOnUse" not in clean and "100000" not in clean
+
+
+def test_sanitize_caps_how_many_elements_use_a_filter():
+    rects = '<rect filter="url(#f)"/>' * 45 + '<rect style="fill:red;filter:url(#f)"/>'
+    clean = infographic.sanitize_svg(_svg(rects))
+    assert clean.count('filter="url(#f)"') == infographic.MAX_FILTERED_ELEMENTS
+    assert 'style="fill:red"' in clean
+
+
+def test_sanitize_drops_use_of_use_and_too_many_uses():
+    laughs = (
+        '<defs><g id="a"><rect/></g>'
+        '<g id="b"><use href="#a"/><use href="#a"/></g>'
+        '<g id="c"><use xlink:href="#b"/><use xlink:href="#b"/></g></defs>'
+        '<use href="#c"/><use href="#a"/>'
+    )
+    clean = infographic.sanitize_svg(_svg(laughs))
+    assert "#b" not in clean and 'href="#c"' not in clean
+    assert clean.count('href="#a"') == 3  # two inside #b, one at top level
+    many = infographic.sanitize_svg(_svg('<use href="#x"/>' * 600))
+    assert many.count("<use") == infographic.MAX_USES
+
+
+def test_sanitize_rejects_huge_images():
+    with pytest.raises(IncompleteGenerationError, match="too complex"):
+        infographic.sanitize_svg(_svg("<rect/>" * 9_000))
+
+
+def test_sanitize_sets_a_size_from_the_aspect_when_missing():
+    clean = infographic.sanitize_svg(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100%"><rect/></svg>',
+        "landscape",
+    )
+    assert 'viewBox="0 0 1920 1080"' in clean
+    assert 'width="1920"' in clean and 'height="1080"' in clean
+
+
+def test_title_and_text():
+    clean = infographic.sanitize_svg(SVG)
+    assert infographic.svg_title(clean) == "Tides & the moon"
+    assert infographic.svg_text(clean).splitlines() == [
+        "Tides & the moon",
+        "Tides explained",
+        "The moon pulls the sea.",
+    ]
+
+
+def test_frontend_offers_exactly_the_backend_options():
+    path = Path(__file__).parents[1] / "frontend/src/lib/infographic-options.ts"
+    source = path.read_text()
+    ids = set(re.findall(r"id: '([a-z-]+)'", source))
+    expected = set(infographic.STYLES) | set(infographic.LAYOUTS)
+    expected |= set(infographic.ASPECTS)
+    assert ids == expected
+
+
+# --- the job ------------------------------------------------------------------
+
+
+def _notebook_with_sources():
+    nb = Notebook(id="notebook:n1", name="Tides", description="Ocean basics")
+    sources = [
+        Source(id="source:s1", title="Moon", full_text="The moon pulls the sea.")
+    ]
+    return nb, sources
+
+
+@pytest.mark.asyncio
+async def test_run_infographic_saves_a_sanitised_svg_note(files_dir):
+    nb, sources = _notebook_with_sources()
+    seen: dict[str, str] = {}
+
+    async def llm(system, human, max_tokens):
+        seen.update(system=system, human=human)
+        return f"```svg\n{SVG.replace('<rect', '<script>x()</script><rect')}\n```"
+
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch.object(Notebook, "get_sources", new=AsyncMock(return_value=sources)),
+        patch.object(Note, "save", new=AsyncMock(return_value=None)) as save,
+        patch.object(Note, "add_to_notebook", new=AsyncMock()) as link,
+    ):
+        note = await run_infographic(
+            GenerateInfographicInput(
+                notebook_id="notebook:n1",
+                style="chalkboard",
+                layout="hub-spoke",
+                aspect="square",
+                instructions="for kids",
+            ),
+            llm,
+        )
+
+    save.assert_awaited_once()
+    link.assert_awaited_once_with("notebook:n1")
+    assert note.note_type == "ai" and not note.explainer
+    assert note.title == "Tides & the moon"
+    assert note.attachment_mime == "image/svg+xml"
+    assert note.attachment_name == "Tides-the-moon.svg"
+    assert "The moon pulls the sea." in (note.content or "")
+    stored = Path(files_dir, note.attachment_file or "").read_text()
+    assert stored.startswith("<svg") and "script" not in stored
+    system = seen["system"]
+    assert "STYLE: Chalkboard" in system and "LAYOUT: Hub and spoke" in system
+    assert 'viewBox="0 0 1440 1440"' in system and "for kids" in system
+    assert '<source n="1" id="source:s1" title="Moon">' in seen["human"]
+
+
+@pytest.mark.asyncio
+async def test_command_reports_failures_instead_of_raising():
+    nb, sources = _notebook_with_sources()
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch.object(Notebook, "get_sources", new=AsyncMock(return_value=sources)),
+        patch(
+            "commands.infographic_commands.default_explainer_llm",
+            new=AsyncMock(return_value="sorry, no"),
+        ),
+    ):
+        out = await generate_infographic_command(
+            GenerateInfographicInput(notebook_id="notebook:n1")
+        )
+    assert out.success is False
+    assert "did not return an SVG" in (out.error_message or "")
+
+
+@pytest.mark.asyncio
+async def test_unknown_option_fails_the_job():
+    out = await generate_infographic_command(
+        GenerateInfographicInput(notebook_id="notebook:n1", style="nope")
+    )
+    assert out.success is False and "Unknown infographic option" in (
+        out.error_message or ""
+    )
+
+
+# --- the API ------------------------------------------------------------------
+
+
+def test_create_infographic_submits_a_job(client):
+    nb, sources = _notebook_with_sources()
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch.object(Notebook, "get_sources", new=AsyncMock(return_value=sources)),
+        patch(
+            "api.routers.infographics.CommandService.submit_command_job",
+            new=AsyncMock(return_value="command:j1"),
+        ) as submit,
+    ):
+        response = client.post(
+            "/api/notebooks/notebook:n1/infographics",
+            json={"style": "pixel-art", "aspect": "landscape", "instructions": " x "},
+        )
+    assert response.status_code == 200
+    assert response.json()["job_id"] == "command:j1"
+    assert submit.await_args is not None
+    args = submit.await_args.args
+    assert args[1] == "generate_infographic"
+    assert datetime.fromisoformat(args[2].pop("requested_at")).tzinfo is not None
+    assert args[2] == {
+        "notebook_id": "notebook:n1",
+        "style": "pixel-art",
+        "layout": "auto",
+        "aspect": "landscape",
+        "instructions": "x",
+    }
+
+
+def test_create_infographic_validates_options_and_sources(client):
+    nb, sources = _notebook_with_sources()
+    url = "/api/notebooks/notebook:n1/infographics"
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch.object(Notebook, "get_sources", new=AsyncMock(return_value=[])),
+    ):
+        assert client.post(url, json={}).status_code == 400  # no sources
+        assert client.post(url, json={"style": "nope"}).status_code == 400
+        assert client.post(url, json={"layout": "nope"}).status_code == 400
+        assert client.post(url, json={"aspect": "tall"}).status_code == 422
+
+
+def test_infographic_jobs_use_their_own_command(client):
+    nb, _ = _notebook_with_sources()
+    rows = [
+        {
+            "id": "command:stuck",
+            "status": "new",
+            "args": {
+                "notebook_id": "notebook:n1",
+                "requested_at": "2020-01-01T00:00:00+00:00",
+            },
+            "result": None,
+        }
+    ]
+    with (
+        patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
+        patch("api.generation_jobs.repo_query", new=AsyncMock(return_value=rows)) as q,
+    ):
+        response = client.get("/api/notebooks/notebook:n1/infographics/jobs")
+    assert response.status_code == 200
+    assert q.await_args is not None
+    assert q.await_args.args[1]["name"] == "generate_infographic"
+    # Queued for years: reported as failed (stale), which then ages out.
+    assert response.json() == []
+
+
+def test_infographic_file_is_served_locked_down(client, files_dir):
+    raw = infographic.sanitize_svg(SVG).encode()
+    stored = note_files.write_note_file(raw, ".svg")
+    note = Note(
+        id="note:n1", title="t", content="text", note_type="ai",
+        attachment_name="t.svg", attachment_file=stored,
+        attachment_mime="image/svg+xml", attachment_size=len(raw),
+    )  # fmt: skip
+    with patch("api.routers.notes.Note.get", new=AsyncMock(return_value=note)):
+        response = client.get("/api/notes/note:n1/file")
+        listed = client.get("/api/notes/note:n1").json()
+    assert response.headers["content-type"].startswith("image/svg+xml")
+    csp = response.headers["content-security-policy"]
+    assert csp.startswith("sandbox;") and "default-src 'none'" in csp
+    assert "script-src" not in csp
+    assert listed["infographic"] is True and listed["explainer"] is False
+
+
+def test_svg_is_still_not_uploadable(client):
+    nb, _ = _notebook_with_sources()
+    with patch.object(Notebook, "get", new=AsyncMock(return_value=nb)):
+        response = client.post(
+            "/api/notes/upload",
+            files={"file": ("x.svg", SVG.encode(), "image/svg+xml")},
+            data={"notebook_id": "notebook:n1"},
+        )
+    assert response.status_code == 415

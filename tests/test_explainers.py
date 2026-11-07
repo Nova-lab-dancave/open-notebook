@@ -335,9 +335,7 @@ def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
     ]
     with (
         patch.object(Notebook, "get", new=AsyncMock(return_value=nb)),
-        patch(
-            "api.routers.explainers.repo_query", new=AsyncMock(return_value=rows)
-        ) as q,
+        patch("api.generation_jobs.repo_query", new=AsyncMock(return_value=rows)) as q,
     ):
         response = client.get("/api/notebooks/notebook:n1/explainers/jobs")
     assert response.status_code == 200
@@ -366,7 +364,8 @@ def test_explainer_jobs_keep_failures_visible_with_their_reason(client):
     assert jobs["command:stuck"]["error_message"] == STALE_JOB_MESSAGE
     assert response.json()[0]["job_id"] == "command:queued"  # newest first
     assert q.await_args is not None and q.await_args.args[1] == {
-        "notebook_id": "notebook:n1"
+        "name": "generate_explainer",
+        "notebook_id": "notebook:n1",
     }
 
 

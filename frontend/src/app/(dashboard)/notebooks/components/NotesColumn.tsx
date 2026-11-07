@@ -18,6 +18,7 @@ import {
   Paperclip,
   Upload,
   Presentation,
+  ImageIcon,
 } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -25,11 +26,13 @@ import { NoteEditorDialog } from './NoteEditorDialog'
 import { NoteFileViewer } from './NoteFileViewer'
 import { GenerateExplainerDialog } from './GenerateExplainerDialog'
 import { NotebookMeetings } from './NotebookMeetings'
+import { GenerateInfographicDialog } from './GenerateInfographicDialog'
 import { NotebookPodcasts } from './NotebookPodcasts'
 import type { NoteContextMode } from '../[id]/page'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
 import { useDeleteNote, useUploadNoteFile } from '@/lib/hooks/use-notes'
 import { useExplainerJobs, useGenerateExplainer } from '@/lib/hooks/use-explainers'
+import { useGenerateInfographic, useInfographicJobs } from '@/lib/hooks/use-infographics'
 import { ExplainerJobRow } from './ExplainerJobRow'
 import { NoteCard, NOTE_GRID_CLASS } from './NoteCard'
 import { useToast } from '@/lib/hooks/use-toast'
@@ -80,6 +83,9 @@ export function NotesColumn({
   const explainer = useGenerateExplainer(notebookId)
   const explainerJobs = useExplainerJobs(notebookId)
   const [explainerOpen, setExplainerOpen] = useState(false)
+  const infographic = useGenerateInfographic(notebookId)
+  const infographicJobs = useInfographicJobs(notebookId)
+  const [infographicOpen, setInfographicOpen] = useState(false)
   const { toast } = useToast()
 
   // Collapsible column state
@@ -253,6 +259,16 @@ export function NotesColumn({
                   <Presentation className="h-4 w-4 text-teal" />
                   <span className="ml-2 hidden min-[1800px]:inline">{t('explainer.button')}</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInfographicOpen(true)}
+                  title={t('infographic.generate')}
+                  aria-label={t('infographic.generate')}
+                >
+                  <ImageIcon className="h-4 w-4 text-teal" />
+                  <span className="ml-2 hidden min-[1800px]:inline">{t('infographic.button')}</span>
+                </Button>
                 <Button size="sm" onClick={() => handleOpenEditor()}>
                   <Plus className="h-4 w-4 mr-2" />
                   {t('common.writeNote')}
@@ -274,18 +290,28 @@ export function NotesColumn({
               <div className="flex items-center justify-center py-8">
                 <LoadingSpinner />
               </div>
-            ) : (!notes || notes.length === 0) && explainerJobs.jobs.length === 0 ? (
+            ) : (!notes || notes.length === 0) &&
+              explainerJobs.jobs.length === 0 &&
+              infographicJobs.jobs.length === 0 ? (
               <EmptyState
                 icon={StickyNote}
                 title={t('notebooks.noNotesYet')}
                 description={t('sources.createFirstNote') + ' ' + t('noteFiles.emptyHint')}
               />
             ) : (
-              // One grid, explainer jobs in progress first, then notes newest first
+              // One grid, generator jobs in progress first, then notes newest first
               // (the API already returns notes by most recently updated).
               <div className={NOTE_GRID_CLASS} data-testid="notes-grid">
                 {explainerJobs.jobs.map((job) => (
                   <ExplainerJobRow key={job.job_id} job={job} onDismiss={explainerJobs.dismiss} />
+                ))}
+                {infographicJobs.jobs.map((job) => (
+                  <ExplainerJobRow
+                    key={job.job_id}
+                    job={job}
+                    kind="infographic"
+                    onDismiss={infographicJobs.dismiss}
+                  />
                 ))}
                 {notes?.map((note) => (
                   <NoteCard
@@ -334,6 +360,14 @@ export function NotesColumn({
         hasSources={hasSources}
         isStarting={explainer.isStarting}
         onGenerate={explainer.start}
+      />
+
+      <GenerateInfographicDialog
+        open={infographicOpen}
+        onOpenChange={setInfographicOpen}
+        hasSources={hasSources}
+        isStarting={infographic.isStarting}
+        onGenerate={infographic.start}
       />
 
       <ConfirmDialog

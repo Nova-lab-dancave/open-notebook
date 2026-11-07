@@ -13,6 +13,7 @@ from open_notebook.exceptions import (
     OpenNotebookError,
 )
 from open_notebook.utils.explainer import EXPLAINER_CSP_HEADER
+from open_notebook.utils.infographic import INFOGRAPHIC_CSP_HEADER, SVG_MIME
 from open_notebook.utils.note_files import (
     ALLOWED_TYPES,
     classify_upload,
@@ -50,6 +51,7 @@ def _note_response(note: Note, command_id=None) -> NoteResponse:
         command_id=str(command_id) if command_id else None,
         attachment=attachment,
         explainer=bool(note.explainer) and attachment is not None,
+        infographic=attachment is not None and note.attachment_mime == SVG_MIME,
     )
 
 
@@ -224,9 +226,16 @@ async def get_note_file(
             raise HTTPException(status_code=404, detail="The file is no longer on disk")
 
         # Type comes from our allow-list (by extension), not from the upload.
-        mime = ALLOWED_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        # SVG is not uploadable; only generated infographics are stored as .svg.
+        if path.suffix.lower() == ".svg" and note.attachment_mime == SVG_MIME:
+            mime = SVG_MIME
+        else:
+            mime = ALLOWED_TYPES.get(path.suffix.lower(), "application/octet-stream")
         headers = {"X-Content-Type-Options": "nosniff"}
-        if mime == "text/html" and note.explainer:
+        if mime == SVG_MIME:
+            # Sanitised at generation; never allowed to run or load anything.
+            headers["Content-Security-Policy"] = INFOGRAPHIC_CSP_HEADER
+        elif mime == "text/html" and note.explainer:
             # Generated explainer: scripts may run, but only in an opaque origin
             # and with subresource requests blocked (ADR-015).
             headers["Content-Security-Policy"] = EXPLAINER_CSP_HEADER

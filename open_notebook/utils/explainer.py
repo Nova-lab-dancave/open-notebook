@@ -102,7 +102,7 @@ def build_sources_block(
     if not usable:
         raise InvalidInputError(
             "This notebook has no source text yet. Add sources (and wait for them "
-            "to finish processing) before generating an explainer."
+            "to finish processing) before generating from them."
         )
 
     # Hand out the budget smallest-first so short sources don't waste it.

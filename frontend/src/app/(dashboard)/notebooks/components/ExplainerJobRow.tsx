@@ -12,16 +12,31 @@ import { NOTE_CARD_CLASS } from './NoteCard'
 // A job still queued after this long usually means no worker is picking it up.
 export const QUEUED_WARNING_MS = 60_000
 
+// i18n keys per generator; explainer and infographic jobs share this card.
+const LABELS = {
+  explainer: {
+    failed: 'explainer.failed',
+    generating: 'explainer.generatingOne',
+  },
+  infographic: {
+    failed: 'infographic.failed',
+    generating: 'infographic.generatingOne',
+  },
+} as const
+
 interface ExplainerJobRowProps {
   job: ExplainerJob
+  /** Which generator the job belongs to (sets the wording). */
+  kind?: keyof typeof LABELS
   onDismiss: (jobId: string) => void
   /** Injectable clock for tests. */
   now?: number
 }
 
-/** A queued, running or failed explainer job, as a square card in the notes grid. */
-export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
+/** A queued, running or failed generator job, as a square card in the notes grid. */
+export function ExplainerJobRow({ job, kind = 'explainer', onDismiss, now }: ExplainerJobRowProps) {
   const { t } = useTranslation()
+  const labels = LABELS[kind]
   const clock = useClock(job.status === 'queued' && now === undefined)
   const current = now ?? clock
 
@@ -33,7 +48,7 @@ export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
         data-testid="explainer-job-failed"
       >
         <AlertTriangle className="h-5 w-5 shrink-0 text-warn" aria-hidden />
-        <p className="pr-6 font-medium">{t('explainer.failed')}</p>
+        <p className="pr-6 font-medium">{t(labels.failed)}</p>
         <p
           className="min-h-0 flex-1 overflow-y-auto text-xs text-muted-foreground [overflow-wrap:anywhere]"
           title={job.error_message || undefined}
@@ -64,7 +79,7 @@ export function ExplainerJobRow({ job, onDismiss, now }: ExplainerJobRowProps) {
       data-testid="explainer-pending"
     >
       <LoadingSpinner />
-      <span>{stuck ? t('explainer.waitingForWorker') : t('explainer.generatingOne')}</span>
+      <span>{stuck ? t('explainer.waitingForWorker') : t(labels.generating)}</span>
     </div>
   )
 }
