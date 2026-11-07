@@ -73,7 +73,16 @@ async def test_transcription_always_removes_private_audio(fails):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "audio",
-    [b"", b"not WAV", wav_bytes(16000 * 26), wav_bytes()[:-2], b"x" * 4_000_001],
+    [
+        # Explicit ids: pytest otherwise builds the test name from the bytes, which
+        # made two of these names millions of characters long and stalled CI's
+        # verbose log stream for hours.
+        pytest.param(b"", id="empty"),
+        pytest.param(b"not WAV", id="not-wav"),
+        pytest.param(wav_bytes(16000 * 26), id="over-25-seconds"),
+        pytest.param(wav_bytes()[:-2], id="truncated"),
+        pytest.param(b"x" * 4_000_001, id="over-4-mb"),
+    ],
 )
 async def test_invalid_audio_never_reaches_provider(audio):
     with patch.object(
