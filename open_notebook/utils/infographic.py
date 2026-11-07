@@ -327,7 +327,19 @@ _ALLOWED_ELEMENTS = {
 
 # Any url(...) that is not a local fragment reference.
 _REMOTE_URL = re.compile(r"url\(\s*(?![\"']?#)", re.IGNORECASE)
-_CSS_DANGER = re.compile(r"@import|expression\s*\(|javascript:|behavior\s*:", re.I)
+# CSS the sanitiser refuses outright. Matching the literal text "url(" or
+# "@import" is not enough: CSS allows escapes (\75rl( is url(, @\69mport is
+# @import) and has URL forms that never contain "url(" (image-set with a string,
+# image()). A downloaded SVG opened in a browser has no CSP, so any of them
+# would fetch from a host the model was told to name. So: no backslash at all,
+# no at-rules except @keyframes, and none of the non-url() image functions.
+_CSS_DANGER = re.compile(
+    r"@(?!keyframes\b)"
+    r"|\\"
+    r"|expression\s*\(|javascript:|behavior\s*:"
+    r"|image-set|image\s*\(|cross-fade|element\s*\(|(?<![\w-])src\s*\(",
+    re.I,
+)
 _XML_DECL = re.compile(r"^\s*<\?xml[^>]*\?>", re.IGNORECASE)
 _DOCTYPE = re.compile(r"<!DOCTYPE[^\[>]*(?:\[.*?\])?\s*>", re.IGNORECASE | re.DOTALL)
 _BARE_AMP = re.compile(r"&(?!#\d+;|#x[0-9a-fA-F]+;|[A-Za-z][A-Za-z0-9]*;)")

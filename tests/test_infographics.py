@@ -93,6 +93,96 @@ def test_sanitize_strips_everything_that_could_run_or_load():
     assert 'style="fill:red"' in clean  # harmless inline style kept
 
 
+def _svg_with(inner: str = "", root_attrs: str = "") -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" '
+        f"{root_attrs}>{inner}<text>kept</text></svg>"
+    )
+
+
+# CSS can spell url( and @import with escapes (\\75rl( is url(, @\\69mport is @import)
+# and has URL forms with no url( at all (image-set with a string). None of these
+# is caught by matching the literal text, and an SVG saved with Download SVG and
+# opened in a browser has no CSP, so each one made the browser contact the host.
+# Explicit ids: pytest would otherwise build the test name from the markup.
+HOSTILE_CSS = [
+    pytest.param(
+        _svg_with('<style>@\\69mport "https://evil.example/a";</style>'),
+        id="escaped-import-string",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>svg{background-image:\\75rl(https://evil.example/b)}</style>"
+        ),
+        id="escaped-url-in-style-element",
+    ),
+    pytest.param(
+        _svg_with(root_attrs='style="background-image:\\75rl(https://evil.example/c)"'),
+        id="escaped-url-in-style-attribute",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:image-set('https://evil.example/d' 1x)\""
+        ),
+        id="image-set-string",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:-webkit-image-set('https://evil.example/e' 1x)\""
+        ),
+        id="webkit-image-set-string",
+    ),
+    pytest.param(
+        _svg_with(
+            root_attrs="style=\"background-image:image('https://evil.example/f')\""
+        ),
+        id="image-function",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>@font-face{font-family:x;src:\\75rl(https://evil.example/g)}</style>"
+        ),
+        id="escaped-url-in-font-face",
+    ),
+    pytest.param(
+        _svg_with(
+            "<style>@font-face{font-family:x;src:url(https://evil.example/h)}</style>"
+        ),
+        id="plain-url-in-font-face",
+    ),
+    pytest.param(
+        _svg_with("<style>@namespace url(https://evil.example/i);</style>"),
+        id="namespace-rule",
+    ),
+]
+
+
+@pytest.mark.parametrize("markup", HOSTILE_CSS)
+def test_sanitize_strips_css_that_loads_by_escape_or_string(markup):
+    clean = infographic.sanitize_svg(markup)
+    assert "evil.example" not in clean
+    assert "\\" not in clean  # no CSS escapes survive in any style text or attribute
+    assert "<text>kept</text>" in clean  # the drawing itself is untouched
+
+
+def test_sanitize_keeps_ordinary_styling():
+    svg = _svg_with(
+        "<style>.t{fill:#0f766e;font-family:Inter,'Segoe UI',Helvetica,sans-serif;"
+        "font-weight:700}.b{stroke:#111;stroke-width:2}"
+        "@keyframes p{from{opacity:0}to{opacity:1}}</style>"
+        '<defs><linearGradient id="g"><stop offset="0" stop-color="#fff"/>'
+        '</linearGradient><filter id="f"><feGaussianBlur stdDeviation="2"/></filter>'
+        "</defs>"
+        '<rect class="b" fill="url(#g)" filter="url(#f)" width="5" height="5"/>'
+        '<rect style="fill:#e07a2f;opacity:.8;stroke:none" width="5" height="5"/>'
+    )
+    clean = infographic.sanitize_svg(svg)
+    assert ".t{fill:#0f766e;font-family:Inter,'Segoe UI',Helvetica,sans-serif" in clean
+    assert "@keyframes p" in clean
+    assert 'fill="url(#g)"' in clean and 'filter="url(#f)"' in clean
+    assert 'style="fill:#e07a2f;opacity:.8;stroke:none"' in clean
+
+
 def test_sanitize_repairs_html_entities_and_bare_ampersands():
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
