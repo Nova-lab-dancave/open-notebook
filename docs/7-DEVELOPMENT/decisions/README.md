@@ -56,5 +56,6 @@ What this makes easier, what it makes harder, what to watch. (bullets)
 | [ADR-013](ADR-013-objectmodel-get-error-contract.md) | ObjectModel.get raises NotFoundError only for a missing record | Accepted |
 | [ADR-014](ADR-014-fork-migration-track.md) | Nova-Notes fork migrations get their own track (100+) | Accepted |
 | [ADR-015](ADR-015-explainer-script-sandbox.md) | Generated explainers may run scripts, in a sandbox that can't send data out | Accepted |
+| [ADR-016](ADR-016-meeting-staging.md) | Browser meeting capture and isolated transcript staging | Accepted |
 | [PDR-001](PDR-001-single-user-first.md) | Single-user first; don't preclude multi-user | Accepted |
 | [PDR-002](PDR-002-provider-agnostic-core.md) | Provider-agnostic core by default | Accepted |

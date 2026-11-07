@@ -35,6 +35,7 @@ from api.routers import (
     folders,
     insights,
     languages,
+    meetings,
     models,
     notebooks,
     notes,
@@ -392,6 +393,7 @@ app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(transformations.router, prefix="/api", tags=["transformations"])
 app.include_router(notes.router, prefix="/api", tags=["notes"])
+app.include_router(meetings.router, prefix="/api", tags=["meetings"])
 app.include_router(explainers.router, prefix="/api", tags=["explainers"])
 app.include_router(embedding.router, prefix="/api", tags=["embedding"])
 app.include_router(

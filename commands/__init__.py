@@ -16,6 +16,7 @@ from .embedding_commands import (
     rebuild_embeddings_command,
 )
 from .explainer_commands import generate_explainer_command
+from .meeting_commands import summarize_meeting_command
 from .podcast_commands import generate_podcast_command, read_script_podcast_command
 from .source_commands import process_source_command
 
@@ -28,6 +29,7 @@ __all__ = [
     # Other commands
     "discover_notebook_command",
     "generate_explainer_command",
+    "summarize_meeting_command",
     "generate_podcast_command",
     "process_source_command",
     "read_script_podcast_command",

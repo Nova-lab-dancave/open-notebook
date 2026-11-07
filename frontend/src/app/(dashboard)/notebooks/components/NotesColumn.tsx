@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { NoteEditorDialog } from './NoteEditorDialog'
 import { NoteFileViewer } from './NoteFileViewer'
 import { GenerateExplainerDialog } from './GenerateExplainerDialog'
+import { NotebookMeetings } from './NotebookMeetings'
 import { NotebookPodcasts } from './NotebookPodcasts'
 import type { NoteContextMode } from '../[id]/page'
 import type { NoteContextDefault } from '@/lib/utils/source-context'
@@ -262,6 +263,7 @@ export function NotesColumn({
           </CardHeader>
 
           <CardContent className="flex-1 overflow-y-auto min-h-0">
+            <NotebookMeetings notebookId={notebookId} />
             {uploading > 0 && (
               <div className="mb-2 flex items-center gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground" role="status">
                 <LoadingSpinner />

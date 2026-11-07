@@ -1,6 +1,8 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 export const bnIN = {
+  meetings,
   common: {
     search: "অনুসন্ধান...",
     create: "নতুন",

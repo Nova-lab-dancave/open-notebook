@@ -63,6 +63,8 @@ vi.mock('@/lib/stores/notebook-columns-store', () => ({
   }),
 }))
 
+vi.mock('./NotebookMeetings', () => ({ NotebookMeetings: () => <div data-testid="notebook-meetings" /> }))
+
 vi.mock('./NotebookPodcasts', () => ({
   NotebookPodcasts: () => <div data-testid="notebook-podcasts" />,
 }))

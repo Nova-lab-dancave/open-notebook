@@ -18,6 +18,7 @@ export const queryClient = new QueryClient({
 })
 
 export const QUERY_KEYS = {
+  meetings: (notebookId: string) => ['meetings', notebookId] as const,
   folders: ['folders'] as const,
   sections: ['sections'] as const,
   notebooks: ['notebooks'] as const,

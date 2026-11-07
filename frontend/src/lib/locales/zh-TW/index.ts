@@ -1,6 +1,8 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 export const zhTW = {
+  meetings,
   common: {
     search: "搜尋...",
     create: "新增",

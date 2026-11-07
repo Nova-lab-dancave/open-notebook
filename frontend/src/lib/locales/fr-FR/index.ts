@@ -1,6 +1,8 @@
+import { meetings } from './meetings'
 import type { TranslationShape } from '../en-US';
 
 export const frFR = {
+  meetings,
   common: {
     search: "Recherche...",
     create: "Créer",
