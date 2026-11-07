@@ -115,6 +115,60 @@ def test_sanitize_refuses_entities_and_broken_xml():
         infographic.sanitize_svg("<html><body/></html>")
 
 
+def _svg(body: str) -> str:
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        'xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">'
+        f"{body}</svg>"
+    )
+
+
+def test_sanitize_caps_heavy_filter_values():
+    clean = infographic.sanitize_svg(
+        _svg(
+            '<filter id="f" x="-5000%" y="-10%" width="9000%" height="120%">'
+            '<feGaussianBlur stdDeviation="500 2"/>'
+            '<feDropShadow stdDeviation="1e9"/>'
+            '<feMorphology radius="300"/>'
+            '<feTurbulence numOctaves="50"/>' + "<feOffset/>" * 10 + "</filter>"
+            '<filter id="u" filterUnits="userSpaceOnUse" x="0" y="0" '
+            'width="100000" height="100000"><feFlood/></filter>'
+        )
+    )
+    assert 'stdDeviation="20 2"' in clean and 'stdDeviation="20"' in clean
+    assert 'radius="8"' in clean and 'numOctaves="4"' in clean
+    assert 'x="-100%"' in clean and 'width="300%"' in clean
+    assert 'y="-10%"' in clean and 'height="120%"' in clean  # sane: untouched
+    assert clean.count("<feOffset") == 8 - 4  # 8 primitives per filter
+    assert "userSpaceOnUse" not in clean and "100000" not in clean
+
+
+def test_sanitize_caps_how_many_elements_use_a_filter():
+    rects = '<rect filter="url(#f)"/>' * 45 + '<rect style="fill:red;filter:url(#f)"/>'
+    clean = infographic.sanitize_svg(_svg(rects))
+    assert clean.count('filter="url(#f)"') == infographic.MAX_FILTERED_ELEMENTS
+    assert 'style="fill:red"' in clean
+
+
+def test_sanitize_drops_use_of_use_and_too_many_uses():
+    laughs = (
+        '<defs><g id="a"><rect/></g>'
+        '<g id="b"><use href="#a"/><use href="#a"/></g>'
+        '<g id="c"><use xlink:href="#b"/><use xlink:href="#b"/></g></defs>'
+        '<use href="#c"/><use href="#a"/>'
+    )
+    clean = infographic.sanitize_svg(_svg(laughs))
+    assert "#b" not in clean and 'href="#c"' not in clean
+    assert clean.count('href="#a"') == 3  # two inside #b, one at top level
+    many = infographic.sanitize_svg(_svg('<use href="#x"/>' * 600))
+    assert many.count("<use") == infographic.MAX_USES
+
+
+def test_sanitize_rejects_huge_images():
+    with pytest.raises(IncompleteGenerationError, match="too complex"):
+        infographic.sanitize_svg(_svg("<rect/>" * 9_000))
+
+
 def test_sanitize_sets_a_size_from_the_aspect_when_missing():
     clean = infographic.sanitize_svg(
         '<svg xmlns="http://www.w3.org/2000/svg" width="100%"><rect/></svg>',

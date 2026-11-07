@@ -47,6 +47,7 @@ dependencies = [
     "pycountry>=26.2.16",
     "babel>=2.18.0",
     "ddgs>=9.16.1",
+    "defusedxml>=0.7.1",  # safe SVG parsing for infographics
 ]
 
 [tool.setuptools]

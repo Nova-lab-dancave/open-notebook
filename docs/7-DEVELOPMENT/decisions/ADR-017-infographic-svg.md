@@ -1,4 +1,4 @@
-# ADR-0XX: Infographics are sanitised static SVG drawn by the chat model
+# ADR-017: Infographics are sanitised static SVG drawn by the chat model
 
 - **Status**: Accepted
 - **Date**: 2026-11
@@ -10,6 +10,7 @@
 ## Decision
 - The default **chat model writes one static SVG** poster. baoyu's layouts and styles (the ones that translate to vector art) are rewritten as prompt guidance in `open_notebook/utils/infographic.py`, with attribution; the frontend offers the same ids (`frontend/src/lib/infographic-options.ts`, cross-checked by a test).
 - **Sanitise, don't sandbox.** Unlike explainers, an infographic needs no scripts, so `sanitize_svg()` parses the reply with `defusedxml` (no DTDs or entities) and rebuilds it from an allow-list of drawing, text, gradient, pattern, mask and filter elements. Scripts, `foreignObject`, links, images, animation, event handlers, foreign namespaces and every reference that is not a local `#fragment` (attributes, inline `style`, `<style>`) are dropped. The stored file can't run code or load anything.
+- **Cap heavy effects.** Filters stay allowed for the look, but blur and morphology radii, turbulence octaves, primitives per filter, filter regions and the number of filtered elements are clamped, `<use>` of an element that itself contains `<use>` is dropped (exponential expansion), and an image over 8,000 elements is rejected. A bad reply can look plainer, but can't hang the tab.
 - **Shown as an image.** The viewer and the note card render it with `<img>` from a blob URL; SVG in an `<img>` never runs scripts or loads subresources. The file is served with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:` in case it is opened directly.
 - **Downloadable** as SVG or as PNG (2x, drawn onto a canvas in the browser). Because the SVG has no external references, the canvas is never tainted.
 - **No migration.** A note is an infographic when its attachment MIME type is `image/svg+xml`. SVG is not in the upload allow-list (`ALLOWED_TYPES`), so only the generator creates such notes. This also avoids clashing with migration 105 claimed by the open meeting-notes PR.

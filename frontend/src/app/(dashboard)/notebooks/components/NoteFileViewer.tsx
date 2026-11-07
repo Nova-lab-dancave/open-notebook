@@ -45,7 +45,7 @@ interface NoteFileViewerProps {
  * URL (ADR-015). Explainers are not offered for download: a copy opened from
  * disk would run outside the sandbox.
  *
- * Generated infographics (sanitised SVG, ADR-016) open full page as an `<img>`,
+ * Generated infographics (sanitised SVG, ADR-017) open full page as an `<img>`,
  * where SVG can never run scripts, and download as SVG or PNG.
  */
 export function NoteFileViewer({ note, open, onOpenChange }: NoteFileViewerProps) {

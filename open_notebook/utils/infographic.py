@@ -4,13 +4,16 @@ Styles and layouts are adapted from the ``baoyu-infographic`` skill in
 JimLiu/baoyu-skills (MIT licence, (c) Jim Liu), rewritten for vector output:
 that skill drives a raster image model, here the chat model draws SVG.
 
-Safety model (ADR-016):
+Safety model (ADR-017):
 
 - :func:`sanitize_svg` parses the reply with ``defusedxml`` (no DTDs or
   entities) and rebuilds it from an allow-list: drawing, text, gradient,
   pattern and filter elements only. Scripts, ``foreignObject``, links,
   animation, images, event handlers and every reference that is not a local
   ``#fragment`` are dropped. The result can't run code or load anything.
+- :func:`_limit_effects` caps what could make a tab slow: blur and morphology
+  radii, turbulence octaves, filter chain length and region, how many elements
+  use a filter, and ``<use>`` of ``<use>`` (exponential expansion).
 - The app shows it as an ``<img>`` (scripts never run there anyway) and serves
   the file with a ``sandbox`` CSP that blocks everything except inline styles.
 - Source text is untrusted: instructions stay in the system message and sources
@@ -356,6 +359,7 @@ def sanitize_svg(svg: str, aspect: str = DEFAULT_ASPECT) -> str:
 
     clean = _clean(root)
     assert clean is not None
+    _limit_effects(clean)
     _ensure_size(clean, aspect)
     ET.register_namespace("", SVG_NS)
     ET.register_namespace("xlink", XLINK_NS)
@@ -422,6 +426,119 @@ def _safe_attr(key: str, value: str) -> Optional[Tuple[str, str]]:
     if lowered == "style" and _CSS_DANGER.search(value):
         return None
     return (name, value)
+
+
+# --- Effect caps --------------------------------------------------------------
+# Filters and <use> are allowed for the look, but a few values make a browser
+# tab crawl (huge blurs, deep turbulence, long filter chains on hundreds of
+# elements, <use> of <use> expanding exponentially). Clamp them so a bad or
+# hostile reply can at worst look plainer, never hang the viewer.
+
+MAX_ELEMENTS = 8_000
+MAX_BLUR = 20.0  # stdDeviation, user units
+MAX_MORPHOLOGY_RADIUS = 8.0
+MAX_TURBULENCE_OCTAVES = 4
+MAX_FILTER_PRIMITIVES = 8  # per <filter>
+MAX_FILTERED_ELEMENTS = 40  # elements carrying a filter attribute or style
+MAX_USES = 500
+# Filter region bounds, as fractions of the bounding box (-10% / 120% default).
+MAX_FILTER_OFFSET = 1.0
+MAX_FILTER_EXTENT = 3.0
+
+_FILTER_PRIMITIVE_PREFIX = "fe"
+_STYLE_FILTER = re.compile(r"(?:^|;)\s*filter\s*:[^;]*", re.IGNORECASE)
+
+
+def _limit_effects(root: ET.Element) -> None:
+    elements = list(root.iter())
+    if len(elements) > MAX_ELEMENTS:
+        raise IncompleteGenerationError(
+            "The infographic was too complex to show safely. Try again, or pick a "
+            "simpler layout."
+        )
+    by_id = {el.get("id"): el for el in elements if el.get("id")}
+    filtered = 0
+    uses = 0
+    for el in elements:
+        name = _local(el.tag)
+        if name == "filter":
+            _limit_filter(el)
+        elif name in ("feGaussianBlur", "feDropShadow"):
+            _clamp_numbers(el, "stdDeviation", MAX_BLUR)
+        elif name == "feMorphology":
+            _clamp_numbers(el, "radius", MAX_MORPHOLOGY_RADIUS)
+        elif name == "feTurbulence":
+            _clamp_numbers(el, "numOctaves", MAX_TURBULENCE_OCTAVES, integer=True)
+
+        style = el.get("style")
+        if el.get("filter") is not None or (style and _STYLE_FILTER.search(style)):
+            filtered += 1
+            if filtered > MAX_FILTERED_ELEMENTS:
+                el.attrib.pop("filter", None)
+                if style:
+                    el.set("style", _STYLE_FILTER.sub("", style).lstrip("; "))
+
+    for parent in elements:
+        for child in list(parent):
+            if _local(child.tag) != "use":
+                continue
+            uses += 1
+            target = by_id.get(_href(child).lstrip("#"))
+            nested = target is not None and any(
+                _local(d.tag) == "use" for d in target.iter()
+            )
+            if uses > MAX_USES or nested:
+                parent.remove(child)
+
+
+def _href(el: ET.Element) -> str:
+    return el.get("href") or el.get(f"{{{XLINK_NS}}}href") or ""
+
+
+def _limit_filter(el: ET.Element) -> None:
+    primitives = [c for c in el if _local(c.tag).startswith(_FILTER_PRIMITIVE_PREFIX)]
+    for extra in primitives[MAX_FILTER_PRIMITIVES:]:
+        el.remove(extra)
+    if el.get("filterUnits") == "userSpaceOnUse":
+        # Absolute regions: fall back to the default bounding-box region.
+        for attr in ("filterUnits", "x", "y", "width", "height"):
+            el.attrib.pop(attr, None)
+        return
+    for attr, low, high in (
+        ("x", -MAX_FILTER_OFFSET, MAX_FILTER_OFFSET),
+        ("y", -MAX_FILTER_OFFSET, MAX_FILTER_OFFSET),
+        ("width", 0.0, MAX_FILTER_EXTENT),
+        ("height", 0.0, MAX_FILTER_EXTENT),
+    ):
+        raw = (el.get(attr) or "").strip()
+        if not raw:
+            continue
+        try:
+            value = float(raw[:-1]) / 100 if raw.endswith("%") else float(raw)
+        except ValueError:
+            el.attrib.pop(attr)
+            continue
+        clamped = min(max(value, low), high)
+        if clamped != value:
+            el.set(attr, f"{clamped * 100:g}%")
+
+
+def _clamp_numbers(
+    el: ET.Element, attr: str, limit: float, *, integer: bool = False
+) -> None:
+    raw = el.get(attr)
+    if raw is None:
+        return
+    out = []
+    for part in raw.replace(",", " ").split():
+        try:
+            value = float(part)
+        except ValueError:
+            el.attrib.pop(attr)
+            return
+        value = min(max(value, 0.0), limit)
+        out.append(str(int(value)) if integer else f"{value:g}")
+    el.set(attr, " ".join(out))
 
 
 def _ensure_size(root: ET.Element, aspect: str) -> None:
