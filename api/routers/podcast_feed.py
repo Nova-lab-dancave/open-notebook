@@ -81,7 +81,7 @@ def _feed_items(episodes: list[PodcastEpisode], base_url: str, token: str):
     return items
 
 
-@router.get("/podcasts/feed/{token}/feed.xml")
+@router.api_route("/podcasts/feed/{token}/feed.xml", methods=["GET", "HEAD"])
 async def get_podcast_feed(token: str, request: Request):
     await _require_feed_token(token)
     # Resolved after the token check so a wrong token is always the uniform 404.

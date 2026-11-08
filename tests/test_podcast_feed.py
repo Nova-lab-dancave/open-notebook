@@ -476,3 +476,27 @@ class TestDeleteAndRetryOfPublishedEpisodes:
 
         assert response.status_code == 400
         delete.assert_not_awaited()
+
+
+class TestFeedAnswersHead:
+    """Podcast apps and feed validators may HEAD the feed before fetching it."""
+
+    def test_head_returns_the_feed_headers_and_no_body(self, client, feed_settings):
+        get = client.get(FEED_PATH)
+
+        head = client.head(FEED_PATH)
+
+        assert head.status_code == 200
+        assert head.headers["content-type"].startswith("application/rss+xml")
+        assert head.headers["content-length"] == str(len(get.content))
+        assert head.content == b""
+
+    def test_head_with_a_wrong_token_is_the_same_404(self, client, feed_settings):
+        head = client.head("/api/podcasts/feed/not-the-token/feed.xml")
+
+        assert head.status_code == 404
+
+    def test_head_works_without_a_bearer_header_when_a_password_is_set(
+        self, password_client, feed_settings
+    ):
+        assert password_client.head(FEED_PATH).status_code == 200
