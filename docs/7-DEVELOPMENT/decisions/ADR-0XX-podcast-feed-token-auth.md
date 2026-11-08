@@ -16,6 +16,7 @@ Open Notebook runs on a tailnet-only host. Tailscale Serve already provides HTTP
   `/api/podcasts/feed/{token}/feed.xml` and `/api/podcasts/feed/{token}/episodes/{id}.<ext>`.
 - `PasswordAuthMiddleware` skips the `/api/podcasts/feed/` prefix. The routes themselves compare the token in constant time and return a uniform 404 for any wrong token, unknown episode or unpublished episode.
 - Access logs redact the token segment.
+- The UI gets the feed URL from an authenticated `GET /api/podcasts/feed-url` and replaces the token with an authenticated `POST /api/podcasts/feed-token/rotate`. Both sit outside the exempt prefix (so the app password applies), and rotation refuses when no HTTPS origin can be resolved rather than rotating blind.
 - Absolute URLs come from `OPEN_NOTEBOOK_PUBLIC_URL`, then `API_URL`, then `X-Forwarded-*`. The first source that is HTTPS wins; non-HTTPS sources are skipped. With none, the feed route returns a configuration error (422) that names `OPEN_NOTEBOOK_PUBLIC_URL`, and the UI shows the reason instead of a URL. The token check runs first, so a wrong token is always the uniform 404.
 - Only `.mp3` (`audio/mpeg`) and `.m4a` (`audio/x-m4a`) can be published; the enclosure `Content-Type` comes from the extension. Range requests are supported, and the feed and audio routes answer GET and HEAD. A published episode whose audio file has vanished is left out of the feed rather than served broken.
 - Publication state is three nullable fields on `episode` (`published_at`, `duration_seconds`, `feed_summary`), added by fork migration 106 (ADR-014 track).
@@ -25,6 +26,7 @@ Open Notebook runs on a tailnet-only host. Tailscale Serve already provides HTTP
 - Holding the feed URL is the only credential. A leaked URL exposes Published Episodes, never the rest of the app. Rotating the token fixes a leak and breaks every existing subscription.
 - The prefix exclusion is the first auth bypass that is not an exact path. Anything added under `/api/podcasts/feed/` is public to token holders and needs the same token check.
 - Tailscale Serve and Cloudflare logs still see the token. Redaction covers application logs only.
+- The settings record is cached per API process. Run a single API process (the default); with several workers a rotation only reaches the others after a restart.
 - Unpublishing removes an episode from the feed at once. Apps that already downloaded it keep their copy.
 - Moving to a public hostname later is configuration plus an ingress rule limited to `^/api/podcasts/feed/`, with rate limiting at the edge.
 

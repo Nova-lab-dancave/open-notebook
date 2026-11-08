@@ -19,6 +19,7 @@ from open_notebook.podcasts.audio_paths import resolve_contained_audio_path
 from open_notebook.podcasts.feed import (
     FeedItem,
     build_feed_xml,
+    feed_url,
     resolve_public_base_url,
 )
 from open_notebook.podcasts.models import PodcastEpisode
@@ -89,10 +90,9 @@ async def get_podcast_feed(token: str, request: Request):
         request.headers.get("x-forwarded-proto"),
         request.headers.get("x-forwarded-host"),
     )
-    feed_url = f"{base_url}/api/podcasts/feed/{token}/feed.xml"
     items = _feed_items(await PodcastEpisode.get_published(), base_url, token)
     return Response(
-        content=build_feed_xml(feed_url, base_url, items),
+        content=build_feed_xml(feed_url(base_url, token), base_url, items),
         media_type="application/rss+xml",
     )
 

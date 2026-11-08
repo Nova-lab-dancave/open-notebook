@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from loguru import logger
 from pydantic import BaseModel
@@ -13,8 +13,10 @@ from api.podcast_service import (
     ScriptPodcastRequest,
 )
 from open_notebook.ai.models import Model
+from open_notebook.domain.podcast_feed import PodcastFeedSettings
 from open_notebook.exceptions import OpenNotebookError
 from open_notebook.podcasts.audio_paths import resolve_contained_audio_path
+from open_notebook.podcasts.feed import feed_url, resolve_public_base_url
 from open_notebook.podcasts.models import PodcastEpisode
 from open_notebook.podcasts.publishing import publish_episode, unpublish_episode
 
@@ -460,6 +462,50 @@ async def unpublish_podcast_episode(episode_id: str):
     except Exception as e:
         logger.error(f"Error unpublishing podcast episode {episode_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to unpublish episode")
+
+
+class FeedUrlResponse(BaseModel):
+    feed_url: str
+
+
+def _public_base_url(request: Request) -> str:
+    return resolve_public_base_url(
+        request.headers.get("x-forwarded-proto"),
+        request.headers.get("x-forwarded-host"),
+    )
+
+
+@router.get("/podcasts/feed-url", response_model=FeedUrlResponse)
+async def get_podcast_feed_url(request: Request):
+    """The Podcast Feed URL to paste into a podcast app (contains the Feed Token)."""
+    try:
+        base_url = _public_base_url(request)
+        token = await PodcastFeedSettings.ensure_feed_token()
+        return FeedUrlResponse(feed_url=feed_url(base_url, token))
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error building the podcast feed URL: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get the feed URL")
+
+
+@router.post("/podcasts/feed-token/rotate", response_model=FeedUrlResponse)
+async def rotate_podcast_feed_token(request: Request):
+    """Replace the Feed Token; existing subscriptions stop working."""
+    try:
+        # Resolve the base URL first: never rotate when no usable URL exists.
+        base_url = _public_base_url(request)
+        token = await PodcastFeedSettings.rotate_feed_token()
+        return FeedUrlResponse(feed_url=feed_url(base_url, token))
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error rotating the podcast feed token: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to rotate the feed token")
 
 
 @router.post("/podcasts/episodes/{episode_id}/retry")

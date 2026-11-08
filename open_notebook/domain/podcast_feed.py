@@ -26,3 +26,11 @@ class PodcastFeedSettings(RecordModel):
             settings.feed_token = secrets.token_urlsafe(32)  # type: ignore[attr-defined]
             await settings.update()
         return settings.feed_token  # type: ignore[attr-defined,no-any-return]
+
+    @classmethod
+    async def rotate_feed_token(cls) -> str:
+        """Replace the Feed Token. Every URL carrying the old one stops working."""
+        settings = await cls.get_instance()
+        settings.feed_token = secrets.token_urlsafe(32)  # type: ignore[attr-defined]
+        await settings.update()
+        return settings.feed_token  # type: ignore[attr-defined,no-any-return]

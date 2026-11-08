@@ -66,6 +66,11 @@ def resolve_public_base_url(
     )
 
 
+def feed_url(base_url: str, token: str) -> str:
+    """The Podcast Feed URL a podcast app subscribes to."""
+    return f"{base_url}/api/podcasts/feed/{token}/feed.xml"
+
+
 def build_feed_xml(
     feed_url: str, base_url: str, items: Optional[list[FeedItem]] = None
 ) -> bytes:
