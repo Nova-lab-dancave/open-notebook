@@ -12,7 +12,7 @@ Nova-Notes is a fork of [lfnovo/open-notebook](https://github.com/lfnovo/open-no
 
 ## What happens after a merge
 
-- Every merge to `main` builds, smoke-tests and publishes a Docker image `ghcr.io/heli-konton/open-notebook:v1.15.0-nova.<run>` (workflow `nova-custom.yml`).
+- Every merge to `main` builds, smoke-tests and publishes a Docker image `ghcr.io/nova-lab-dancave/open-notebook:v<version>-nova.<run>` (workflow `nova-custom.yml`).
 - **Publishing is not deploying.** The running instance only changes when the maintainer deploys a specific image by hand. Merging can't break anyone's live data.
 
 ## Before you open a PR
