@@ -7,6 +7,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { EpisodesTab } from '@/components/podcasts/EpisodesTab'
+import { FeedUrlPanel } from '@/components/podcasts/FeedUrlPanel'
 import { TemplatesTab } from '@/components/podcasts/TemplatesTab'
 import { Mic, LayoutTemplate } from 'lucide-react'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -44,6 +45,8 @@ export default function PodcastsPage() {
               </AlertDescription>
             </Alert>
           ) : null}
+
+          <FeedUrlPanel />
 
           <Tabs
             value={activeTab}

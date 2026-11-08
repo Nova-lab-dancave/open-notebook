@@ -8,6 +8,7 @@ import {
   PodcastGenerationRequest,
   PodcastGenerationResponse,
   ScriptPodcastRequest,
+  PodcastFeedUrl,
 } from '@/lib/types/podcasts'
 
 export type EpisodeProfileInput = Omit<EpisodeProfile, 'id'>
@@ -71,6 +72,18 @@ export async function downloadEpisodeAudio(
 }
 
 export const podcastsApi = {
+  /** The Podcast Feed URL; rejects with a 422 when the server has no HTTPS address. */
+  getFeedUrl: async () => {
+    const response = await apiClient.get<PodcastFeedUrl>('/podcasts/feed-url')
+    return response.data
+  },
+
+  /** Replace the Feed Token. Every existing subscription stops working. */
+  rotateFeedToken: async () => {
+    const response = await apiClient.post<PodcastFeedUrl>('/podcasts/feed-token/rotate')
+    return response.data
+  },
+
   listEpisodes: async (params?: { notebook_id?: string }) => {
     const response = await apiClient.get<PodcastEpisode[]>('/podcasts/episodes', {
       params: params?.notebook_id ? { notebook_id: params.notebook_id } : undefined,

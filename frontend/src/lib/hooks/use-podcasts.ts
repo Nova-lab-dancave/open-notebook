@@ -5,7 +5,7 @@ import { podcastsApi, EpisodeProfileInput, SpeakerProfileInput } from '@/lib/api
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { getApiErrorKey, getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   ACTIVE_EPISODE_STATUSES,
   EpisodeProfile,
@@ -16,6 +16,41 @@ import {
   groupEpisodesByStatus,
   speakerUsageMap,
 } from '@/lib/types/podcasts'
+
+export function usePodcastFeedUrl() {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedUrl,
+    queryFn: podcastsApi.getFeedUrl,
+    // A 422 means the server has no HTTPS address; retrying cannot fix that.
+    retry: false,
+  })
+}
+
+export function useRotatePodcastFeedToken() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: () => podcastsApi.rotateFeedToken(),
+    // A retried rotation could succeed twice and strand the URL the user copied.
+    retry: false,
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedUrl, data)
+      toast({
+        title: t('podcasts.feed.rotated'),
+        description: t('podcasts.feed.rotatedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.rotateFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
 
 export function useLanguages() {
   return useQuery({

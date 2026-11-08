@@ -198,3 +198,8 @@ export function needsModelSetup(profile: EpisodeProfile | SpeakerProfile): boole
   const sp = profile as SpeakerProfile
   return !sp.voice_model
 }
+
+/** The Podcast Feed URL to paste into a podcast app (it contains the Feed Token). */
+export interface PodcastFeedUrl {
+  feed_url: string
+}
