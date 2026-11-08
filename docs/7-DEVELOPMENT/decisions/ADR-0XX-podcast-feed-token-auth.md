@@ -17,7 +17,7 @@ Open Notebook runs on a tailnet-only host. Tailscale Serve already provides HTTP
 - `PasswordAuthMiddleware` skips the `/api/podcasts/feed/` prefix. The routes themselves compare the token in constant time and return a uniform 404 for any wrong token, unknown episode or unpublished episode.
 - Access logs redact the token segment.
 - Absolute URLs come from `OPEN_NOTEBOOK_PUBLIC_URL`, then `API_URL`, then `X-Forwarded-*`. The first source that is HTTPS wins; non-HTTPS sources are skipped. With none, the feed route returns a configuration error (422) that names `OPEN_NOTEBOOK_PUBLIC_URL`, and the UI shows the reason instead of a URL. The token check runs first, so a wrong token is always the uniform 404.
-- Only `.mp3` and `.m4a` can be published. `Content-Type` comes from the extension. Range requests are supported.
+- Only `.mp3` (`audio/mpeg`) and `.m4a` (`audio/x-m4a`) can be published; the enclosure `Content-Type` comes from the extension. Range requests are supported. A published episode whose audio file has vanished is left out of the feed rather than served broken.
 - Publication state is three nullable fields on `episode` (`published_at`, `duration_seconds`, `feed_summary`), added by fork migration 106 (ADR-014 track).
 
 ## Consequences

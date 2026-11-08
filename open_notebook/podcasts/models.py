@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
 
 from loguru import logger
@@ -218,6 +219,12 @@ class PodcastEpisode(ObjectModel):
     """Enhanced PodcastEpisode with job tracking and metadata"""
 
     table_name: ClassVar[str] = "episode"
+    # Publication state is cleared by saving None (unpublish).
+    nullable_fields: ClassVar[set[str]] = {
+        "published_at",
+        "duration_seconds",
+        "feed_summary",
+    }
 
     name: str = Field(..., description="Episode name")
     episode_profile: Dict[str, Any] = Field(
@@ -252,6 +259,20 @@ class PodcastEpisode(ObjectModel):
     )
     progress: Optional[int] = Field(
         default=None, ge=0, le=100, description="Generation progress (0-100)"
+    )
+    published_at: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "When the episode was put in the Podcast Feed; None means it is "
+            "not a Published Episode (see CONTEXT.md). Doubles as the feed "
+            "item's pubDate."
+        ),
+    )
+    duration_seconds: Optional[int] = Field(
+        default=None, ge=0, description="Audio length, read when publishing"
+    )
+    feed_summary: Optional[str] = Field(
+        default=None, description="Episode description shown in podcast apps"
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -326,6 +347,19 @@ class PodcastEpisode(ObjectModel):
                 "error_message": row.get("error_message"),
             }
         return grouped
+
+    @classmethod
+    async def get_published(cls) -> List["PodcastEpisode"]:
+        """Published Episodes (see CONTEXT.md), newest published first."""
+        rows = await repo_query("SELECT * FROM episode WHERE published_at != NONE")
+        episodes = [cls(**row) for row in rows]
+        epoch = datetime.min.replace(tzinfo=timezone.utc)
+
+        def when(episode: "PodcastEpisode") -> datetime:
+            at = episode.published_at or epoch
+            return at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+
+        return sorted(episodes, key=when, reverse=True)
 
     @field_validator("command", "notebook", mode="before")
     @classmethod

@@ -7,6 +7,8 @@ and replaces the password login for this one prefix.
 """
 
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -56,6 +58,13 @@ def password_client(monkeypatch):
     finally:
         monkeypatch.setenv("OPEN_NOTEBOOK_PASSWORD", "")
         app.middleware_stack = None
+
+
+@pytest.fixture(autouse=True)
+def no_published_episodes():
+    """By default no episode is published; `published(...)` overrides this."""
+    with patch("open_notebook.podcasts.models.repo_query", AsyncMock(return_value=[])):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -307,3 +316,163 @@ class TestFeedTokenIsMintedAtStartup:
             pass
 
         assert calls == ["migrations", "mint"]
+
+
+def episode_row(key, name, published_at, ext="mp3", **overrides):
+    row = dict(
+        id=f"episode:{key}",
+        name=name,
+        episode_profile={"name": "default"},
+        speaker_profile={"name": "default"},
+        briefing="INTERNAL generation prompt, never shown in the feed",
+        content="source text",
+        audio_file=f"episodes/{key}/audio/{key}.{ext}",
+        published_at=published_at,
+        duration_seconds=26,
+        feed_summary=f"About {name}",
+    )
+    row.update(overrides)
+    return row
+
+
+@pytest.fixture
+def published(tmp_path, monkeypatch):
+    """Serve `rows` as the published episodes, with real audio files for them."""
+    monkeypatch.setattr(
+        "open_notebook.podcasts.audio_paths.PODCASTS_FOLDER", str(tmp_path)
+    )
+
+    def serve(rows, audio=b"A" * 417000):
+        for row in rows:
+            if audio is not None:
+                path = tmp_path / row["audio_file"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(audio)
+        return patch(
+            "open_notebook.podcasts.models.repo_query",
+            AsyncMock(return_value=rows),
+        )
+
+    return serve
+
+
+def _items(response):
+    channel = ET.fromstring(response.content).find("channel")
+    assert channel is not None
+    return channel.findall("item")
+
+
+class TestFeedItems:
+    OLDER = datetime(2026, 11, 2, 8, 0, tzinfo=timezone.utc)
+    NEWER = datetime(2026, 11, 5, 18, 45, tzinfo=timezone.utc)
+
+    def test_published_episode_becomes_an_item(self, client, feed_settings, published):
+        with published([episode_row("ep1", "Offline first", self.NEWER)]):
+            response = client.get(FEED_PATH)
+
+        (item,) = _items(response)
+        assert item.findtext("title") == "Offline first"
+        assert item.findtext("description") == "About Offline first"
+        assert parsedate_to_datetime(item.findtext("pubDate")) == self.NEWER
+        assert item.findtext(f"{ITUNES}duration") == "26"
+        guid = item.find("guid")
+        assert guid is not None
+        assert guid.text == "open-notebook-episode-ep1"
+        assert guid.attrib["isPermaLink"] == "false"
+        enclosure = item.find("enclosure")
+        assert enclosure is not None
+        assert enclosure.attrib == {
+            "url": f"{PUBLIC_URL}/api/podcasts/feed/{TOKEN}/episodes/ep1.mp3",
+            "length": "417000",  # bytes written by the fixture
+            "type": "audio/mpeg",
+        }
+
+    def test_items_are_newest_published_first(self, client, feed_settings, published):
+        rows = [
+            episode_row("old", "Older", self.OLDER),
+            episode_row("new", "Newer", self.NEWER),
+        ]
+        with published(rows):
+            titles = [i.findtext("title") for i in _items(client.get(FEED_PATH))]
+
+        assert titles == ["Newer", "Older"]
+
+    def test_m4a_episode_has_the_m4a_mime_type(self, client, feed_settings, published):
+        with published([episode_row("ep1", "Talk", self.NEWER, ext="m4a")]):
+            (item,) = _items(client.get(FEED_PATH))
+
+        enclosure = item.find("enclosure")
+        assert enclosure is not None
+        assert enclosure.attrib["type"] == "audio/x-m4a"
+        assert enclosure.attrib["url"].endswith("/episodes/ep1.m4a")
+
+    def test_generation_briefing_never_reaches_the_feed(
+        self, client, feed_settings, published
+    ):
+        with published([episode_row("ep1", "Offline first", self.NEWER)]):
+            response = client.get(FEED_PATH)
+
+        assert b"INTERNAL generation prompt" not in response.content
+
+    def test_published_episode_whose_audio_vanished_is_left_out(
+        self, client, feed_settings, published
+    ):
+        with published([episode_row("ep1", "Gone", self.NEWER)], audio=None):
+            assert _items(client.get(FEED_PATH)) == []
+
+
+class TestDeleteAndRetryOfPublishedEpisodes:
+    PUBLISHED = datetime(2026, 11, 5, 18, 45, tzinfo=timezone.utc)
+
+    def test_deleting_a_published_episode_removes_it_from_the_feed(
+        self, client, feed_settings, published
+    ):
+        from open_notebook.podcasts.models import PodcastEpisode
+
+        rows = [episode_row("ep1", "Offline first", self.PUBLISHED)]
+        episode = PodcastEpisode(**rows[0])
+
+        async def fake_delete(self):
+            rows.clear()
+            return True
+
+        with (
+            published(rows),
+            patch(
+                "api.routers.podcasts.PodcastService.get_episode",
+                new=AsyncMock(return_value=episode),
+            ),
+            patch.object(PodcastEpisode, "delete", fake_delete),
+        ):
+            assert len(_items(client.get(FEED_PATH))) == 1
+
+            deleted = client.delete("/api/podcasts/episodes/episode:ep1")
+
+            assert deleted.status_code == 200
+            assert _items(client.get(FEED_PATH)) == []
+
+    def test_a_published_episode_cannot_be_retried(
+        self, client, feed_settings, published
+    ):
+        from open_notebook.podcasts.models import PodcastEpisode
+
+        episode = PodcastEpisode(**episode_row("ep1", "Offline first", self.PUBLISHED))
+
+        with (
+            patch(
+                "api.routers.podcasts.PodcastService.get_episode",
+                new=AsyncMock(return_value=episode),
+            ),
+            patch.object(
+                PodcastEpisode,
+                "get_job_detail",
+                new=AsyncMock(
+                    return_value={"status": "completed", "error_message": None}
+                ),
+            ),
+            patch.object(PodcastEpisode, "delete", new=AsyncMock()) as delete,
+        ):
+            response = client.post("/api/podcasts/episodes/episode:ep1/retry")
+
+        assert response.status_code == 400
+        delete.assert_not_awaited()

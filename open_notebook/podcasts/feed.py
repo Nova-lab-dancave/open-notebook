@@ -2,6 +2,9 @@
 
 import os
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import format_datetime
 from typing import Optional
 
 from open_notebook.exceptions import ConfigurationError
@@ -19,6 +22,20 @@ DEFAULT_LANGUAGE = "en"
 
 def _itunes(tag: str) -> str:
     return f"{{{ITUNES_NS}}}{tag}"
+
+
+@dataclass(frozen=True)
+class FeedItem:
+    """One Published Episode as a feed item."""
+
+    title: str
+    description: str
+    published_at: datetime  # timezone-aware
+    guid: str
+    enclosure_url: str
+    enclosure_bytes: int
+    enclosure_type: str
+    duration_seconds: int
 
 
 def resolve_public_base_url(
@@ -49,8 +66,10 @@ def resolve_public_base_url(
     )
 
 
-def build_feed_xml(feed_url: str, base_url: str) -> bytes:
-    """Serialise the Podcast Feed with default show info and no items."""
+def build_feed_xml(
+    feed_url: str, base_url: str, items: Optional[list[FeedItem]] = None
+) -> bytes:
+    """Serialise the Podcast Feed: default show info plus one item per episode."""
     rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
     ET.SubElement(channel, "title").text = DEFAULT_TITLE
@@ -65,4 +84,22 @@ def build_feed_xml(feed_url: str, base_url: str) -> bytes:
     ET.SubElement(channel, _itunes("author")).text = DEFAULT_AUTHOR
     # Private feed: keep it out of Apple's public directory.
     ET.SubElement(channel, _itunes("block")).text = "yes"
+    for item in items or []:
+        element = ET.SubElement(channel, "item")
+        ET.SubElement(element, "title").text = item.title
+        ET.SubElement(element, "description").text = item.description
+        ET.SubElement(element, "pubDate").text = format_datetime(
+            item.published_at.astimezone(timezone.utc), usegmt=True
+        )
+        ET.SubElement(element, "guid", {"isPermaLink": "false"}).text = item.guid
+        ET.SubElement(
+            element,
+            "enclosure",
+            {
+                "url": item.enclosure_url,
+                "length": str(item.enclosure_bytes),
+                "type": item.enclosure_type,
+            },
+        )
+        ET.SubElement(element, _itunes("duration")).text = str(item.duration_seconds)
     return ET.tostring(rss, encoding="utf-8", xml_declaration=True)
