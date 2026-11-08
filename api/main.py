@@ -53,6 +53,7 @@ from api.routers import (
 )
 from api.routers import commands as commands_router
 from open_notebook.database.async_migrate import AsyncMigrationManager
+from open_notebook.domain.podcast_feed import PodcastFeedSettings
 from open_notebook.exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -212,6 +213,9 @@ async def lifespan(app: FastAPI):
         logger.exception(e)
         # Fail fast - don't start the API with an outdated database schema
         raise RuntimeError(f"Failed to run database migrations: {str(e)}") from e
+
+    # Mint the Podcast Feed's Feed Token once (idempotent; never logged).
+    await PodcastFeedSettings.ensure_feed_token()
 
     logger.success("API initialization completed successfully")
 

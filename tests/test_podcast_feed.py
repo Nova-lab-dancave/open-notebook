@@ -228,3 +228,82 @@ class TestFeedBaseUrl:
         response = client.get("/api/podcasts/feed/not-the-token/feed.xml")
 
         assert response.status_code == 404
+
+
+class TestFeedTokenMinting:
+    """The Feed Token is minted once and then stays the same across restarts.
+
+    The settings record is the real `PodcastFeedSettings`; only the database
+    boundary is faked, with a one-record in-memory store.
+    """
+
+    @pytest.fixture
+    def db(self):
+        store: dict = {}
+        saves: list = []
+
+        async def fake_query(query, params=None):
+            return [dict(store)] if store else []
+
+        async def fake_upsert(table, id, data, add_timestamp=False):
+            saves.append(dict(data))
+            store.update(data)
+            return [dict(store)]
+
+        PodcastFeedSettings.clear_instance()
+        with (
+            patch("open_notebook.domain.base.repo_query", fake_query),
+            patch("open_notebook.domain.base.repo_upsert", fake_upsert),
+        ):
+            yield SimpleNamespace(store=store, saves=saves)
+        PodcastFeedSettings.clear_instance()
+
+    @pytest.mark.asyncio
+    async def test_first_call_mints_and_saves_a_strong_token(self, db):
+        token = await PodcastFeedSettings.ensure_feed_token()
+
+        assert len(token) >= 43  # token_urlsafe(32) is 43 characters
+        assert all(c.isalnum() or c in "-_" for c in token)
+        assert db.store["feed_token"] == token
+        assert len(db.saves) == 1
+
+    @pytest.mark.asyncio
+    async def test_token_survives_a_restart_unchanged(self, db):
+        first = await PodcastFeedSettings.ensure_feed_token()
+        PodcastFeedSettings.clear_instance()  # a new process, same database
+
+        second = await PodcastFeedSettings.ensure_feed_token()
+
+        assert second == first
+        assert len(db.saves) == 1
+
+    @pytest.mark.asyncio
+    async def test_different_instances_get_different_tokens(self, db):
+        first = await PodcastFeedSettings.ensure_feed_token()
+        db.store.clear()
+        PodcastFeedSettings.clear_instance()
+
+        assert await PodcastFeedSettings.ensure_feed_token() != first
+
+
+class TestFeedTokenIsMintedAtStartup:
+    def test_api_startup_mints_the_token_after_migrations(self):
+        from api.main import app
+
+        calls: list[str] = []
+
+        async def fake_migrations():
+            calls.append("migrations")
+
+        async def fake_mint():
+            calls.append("mint")
+            return TOKEN
+
+        with (
+            patch("api.main._run_database_migrations", fake_migrations),
+            patch.object(PodcastFeedSettings, "ensure_feed_token", fake_mint),
+            TestClient(app),  # entering the client runs the lifespan
+        ):
+            pass
+
+        assert calls == ["migrations", "mint"]

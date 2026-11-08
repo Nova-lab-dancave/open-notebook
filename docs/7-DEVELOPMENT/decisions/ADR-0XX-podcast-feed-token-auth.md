@@ -11,7 +11,7 @@ Open Notebook runs on a tailnet-only host. Tailscale Serve already provides HTTP
 ## Decision
 
 - One Podcast Feed for the whole instance, containing Published Episodes only. Publishing is manual and reversible.
-- One Feed Token per instance (`secrets.token_urlsafe(32)`), stored in a singleton settings record and shown in the UI with a Rotate action.
+- One Feed Token per instance (`secrets.token_urlsafe(32)`), minted once at the first API startup after migrations and stored in a singleton settings record. Later startups reuse it; only a rotation replaces it. It is shown in the UI with a Rotate action.
 - The token is a URL **path segment**, never a query parameter:
   `/api/podcasts/feed/{token}/feed.xml` and `/api/podcasts/feed/{token}/episodes/{id}.<ext>`.
 - `PasswordAuthMiddleware` skips the `/api/podcasts/feed/` prefix. The routes themselves compare the token in constant time and return a uniform 404 for any wrong token, unknown episode or unpublished episode.
