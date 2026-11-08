@@ -9,6 +9,7 @@ import {
   PodcastGenerationResponse,
   ScriptPodcastRequest,
   PodcastFeedUrl,
+  PublishedEpisodeState,
 } from '@/lib/types/podcasts'
 
 export type EpisodeProfileInput = Omit<EpisodeProfile, 'id'>
@@ -89,6 +90,23 @@ export const podcastsApi = {
       params: params?.notebook_id ? { notebook_id: params.notebook_id } : undefined,
     })
     return response.data
+  },
+
+  /**
+   * Put a completed episode in the Podcast Feed. Without a summary the server
+   * uses an excerpt of the outline; republishing keeps the original publish time.
+   */
+  publishEpisode: async (episodeId: string, summary?: string) => {
+    const response = await apiClient.post<PublishedEpisodeState>(
+      `/podcasts/episodes/${episodeId}/publish`,
+      summary === undefined ? {} : { summary }
+    )
+    return response.data
+  },
+
+  /** Take an episode out of the Podcast Feed (a no-op if it is not in it). */
+  unpublishEpisode: async (episodeId: string) => {
+    await apiClient.post(`/podcasts/episodes/${episodeId}/unpublish`)
   },
 
   deleteEpisode: async (episodeId: string) => {

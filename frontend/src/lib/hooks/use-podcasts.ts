@@ -156,6 +156,59 @@ export function useRetryPodcastEpisode() {
   })
 }
 
+export function usePublishPodcastEpisode() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({ episodeId, summary }: { episodeId: string; summary?: string }) =>
+      podcastsApi.publishEpisode(episodeId, summary),
+    // A refusal (not completed, unsupported format, ...) will not change on a
+    // retry; the reason is shown once.
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.podcastEpisodes })
+      toast({
+        title: t('podcasts.feed.published'),
+        description: t('podcasts.feed.publishedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.publishFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUnpublishPodcastEpisode() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (episodeId: string) => podcastsApi.unpublishEpisode(episodeId),
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.podcastEpisodes })
+      toast({
+        title: t('podcasts.feed.unpublished'),
+        description: t('podcasts.feed.unpublishedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.unpublishFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
 export function useDeletePodcastEpisode() {
   const queryClient = useQueryClient()
   const { toast } = useToast()

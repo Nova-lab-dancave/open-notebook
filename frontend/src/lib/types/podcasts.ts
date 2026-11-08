@@ -92,6 +92,11 @@ export interface PodcastEpisode {
   /** Generation progress 0-100 (null when unknown) */
   progress?: number | null
   error_message?: string | null
+  /** When the episode was put in the Podcast Feed; null/absent = not published */
+  published_at?: string | null
+  duration_seconds?: number | null
+  /** Episode description shown in podcast apps (set when published) */
+  feed_summary?: string | null
 }
 
 export interface PodcastGenerationRequest {
@@ -202,4 +207,11 @@ export function needsModelSetup(profile: EpisodeProfile | SpeakerProfile): boole
 /** The Podcast Feed URL to paste into a podcast app (it contains the Feed Token). */
 export interface PodcastFeedUrl {
   feed_url: string
+}
+
+/** What publishing an episode returns. */
+export interface PublishedEpisodeState {
+  published_at: string | null
+  duration_seconds: number | null
+  feed_summary: string | null
 }
