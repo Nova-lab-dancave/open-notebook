@@ -9,7 +9,7 @@ permissions:
 
 env:
   SOURCE_IMAGE: lfnovo/open_notebook@sha256:54b2025a4a4853c188f74b9b8246eca8c5480e5dd1babfa92db1038ff2f30212
-  TARGET_IMAGE: ghcr.io/heli-konton/open-notebook
+  TARGET_IMAGE: ghcr.io/nova-lab-dancave/open-notebook
 
 jobs:
   copy-and-smoke-test:

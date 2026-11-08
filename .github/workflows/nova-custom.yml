@@ -28,9 +28,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  TARGET_IMAGE: ghcr.io/heli-konton/open-notebook
-
 jobs:
   build-smoke-publish:
     runs-on: ubuntu-latest
@@ -45,6 +42,9 @@ jobs:
         run: |
           version=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
           echo "IMAGE_TAG=${INPUT_TAG:-v${version}-nova.${RUN_NUMBER}}" >> "$GITHUB_ENV"
+          # GITHUB_TOKEN can only write packages under the repo owner's namespace
+          # (it must be lowercase), so follow the owner instead of hard-coding it.
+          echo "TARGET_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/open-notebook" >> "$GITHUB_ENV"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
@@ -118,9 +118,16 @@ jobs:
           test "$code" = 404 && grep -q "not found" /tmp/rs.json
           docker logs nova-open-notebook 2>&1 | grep -i "migration" | tail -5
           # Fresh DB: upstream track to its end, fork track to its last migration.
-          docker logs nova-open-notebook 2>&1 | grep -q "Nova-Notes version: 103"
+          # Read the expected number from the code so adding a migration cannot
+          # silently turn this gate red (it was hard-coded to 103 until 105 shipped).
+          expected=$(python3 -c "import re; m = re.search(r'NOVA_MIGRATION_NUMBERS\s*=\s*\[([^\]]*)\]', open('open_notebook/database/async_migrate.py').read()); print(max(int(x) for x in m.group(1).split(',')))")
+          echo "expecting Nova-Notes version: $expected"
+          docker logs nova-open-notebook 2>&1 | grep -q "Nova-Notes version: $expected"
 
+      # Only main publishes. A manual dispatch on a branch still builds and
+      # smoke-tests (a safe way to try a workflow change) but pushes nothing.
       - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
@@ -128,6 +135,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish
+        if: github.ref == 'refs/heads/main'
         run: |
           docker tag nova-open-notebook:candidate "$TARGET_IMAGE:$IMAGE_TAG"
           docker tag nova-open-notebook:candidate "$TARGET_IMAGE:sha-${GITHUB_SHA::7}"
