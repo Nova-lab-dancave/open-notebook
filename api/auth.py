@@ -18,9 +18,16 @@ class PasswordAuthMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(
-        self, app: ASGIApp, excluded_paths: Optional[list[str]] = None
+        self,
+        app: ASGIApp,
+        excluded_paths: Optional[list[str]] = None,
+        excluded_prefixes: Optional[list[str]] = None,
     ) -> None:
         super().__init__(app)
+        # Prefixes whose routes authenticate themselves (e.g. a token in the
+        # path). Keep each one with a trailing slash so a look-alike route such
+        # as "/api/podcasts/feed-url" does not match "/api/podcasts/feed/".
+        self.excluded_prefixes: list[str] = excluded_prefixes or []
         self.password = get_secret_from_env("OPEN_NOTEBOOK_PASSWORD")
         self.excluded_paths: list[str] = excluded_paths or [
             "/",
@@ -39,6 +46,10 @@ class PasswordAuthMiddleware(BaseHTTPMiddleware):
 
         # Skip authentication for excluded paths
         if request.url.path in self.excluded_paths:
+            return await call_next(request)
+
+        # Skip the password for self-authenticating prefixes
+        if request.url.path.startswith(tuple(self.excluded_prefixes)):
             return await call_next(request)
 
         # Skip authentication for CORS preflight requests (OPTIONS)
