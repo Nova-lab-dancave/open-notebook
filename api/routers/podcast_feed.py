@@ -7,13 +7,14 @@ added under this router is public to token holders and must check the token.
 
 import secrets
 from datetime import timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from loguru import logger
 
 from open_notebook.domain.podcast_feed import PodcastFeedSettings
-from open_notebook.exceptions import NotFoundError
+from open_notebook.exceptions import InvalidInputError, NotFoundError
 from open_notebook.podcasts.audio_paths import resolve_contained_audio_path
 from open_notebook.podcasts.feed import (
     FeedItem,
@@ -94,3 +95,42 @@ async def get_podcast_feed(token: str, request: Request):
         content=build_feed_xml(feed_url, base_url, items),
         media_type="application/rss+xml",
     )
+
+
+async def _published_audio_file(filename: str) -> tuple[Path, str]:
+    """The audio file and MIME type behind a feed enclosure URL.
+
+    Every way this can fail (unknown or unpublished episode, a URL that is not
+    exactly the one the feed gives out, a missing file or a path outside the
+    podcasts folder) is the same uniform 404, so nothing can be probed. A
+    database outage is not hidden as a 404.
+    """
+    key, dot, ext = filename.rpartition(".")
+    suffix = f".{ext.lower()}"
+    if not (key and dot) or suffix not in PUBLISHABLE_AUDIO_TYPES:
+        raise NotFoundError("Not found")
+    try:
+        episode = await PodcastEpisode.get(f"episode:{key}")
+    except (NotFoundError, InvalidInputError):
+        raise NotFoundError("Not found")
+    audio_path = resolve_contained_audio_path(episode.audio_file)
+    if (
+        episode.published_at is None
+        or audio_path is None
+        or not audio_path.is_file()
+        or audio_path.suffix.lower() != suffix
+    ):
+        raise NotFoundError("Not found")
+    return audio_path, PUBLISHABLE_AUDIO_TYPES[suffix]
+
+
+@router.api_route("/podcasts/feed/{token}/episodes/{filename}", methods=["GET", "HEAD"])
+async def get_podcast_feed_audio(token: str, filename: str):
+    """Serve a Published Episode's audio to a podcast app (token in the path).
+
+    FileResponse supplies Content-Length, Accept-Ranges and byte ranges (206 or
+    416), which Apple Podcasts needs to seek and resume.
+    """
+    await _require_feed_token(token)
+    audio_path, media_type = await _published_audio_file(filename)
+    return FileResponse(audio_path, media_type=media_type)
