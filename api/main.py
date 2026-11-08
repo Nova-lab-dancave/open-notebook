@@ -11,6 +11,7 @@ from open_notebook.utils.proxy import ensure_internal_no_proxy
 ensure_internal_no_proxy()
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -21,6 +22,7 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
+from api.logging_filters import RedactFeedToken
 from api.middleware import MaxBodySizeMiddleware, get_max_upload_size_bytes
 from api.routers import (
     auth,
@@ -187,6 +189,9 @@ async def _run_database_migrations() -> None:
         logger.info("Database is already at the latest version. No migrations needed.")
 
 
+_REDACT_FEED_TOKEN = RedactFeedToken()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -195,6 +200,10 @@ async def lifespan(app: FastAPI):
     """
     # Startup: Security checks
     logger.info("Starting API initialization...")
+
+    # Keep the Feed Token out of uvicorn's access log. Adding the same filter
+    # instance again (reload, repeated startups) is a no-op.
+    logging.getLogger("uvicorn.access").addFilter(_REDACT_FEED_TOKEN)
 
     # Security check: Encryption key
     if not get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY"):
