@@ -14,6 +14,18 @@ class PodcastFeedSettings(RecordModel):
         None, description="Feed Token embedded in the Podcast Feed URL"
     )
 
+    # Show Metadata (see CONTEXT.md). None means "use the default".
+    show_title: Optional[str] = Field(None, description="Show title")
+    show_author: Optional[str] = Field(None, description="Show author")
+    show_description: Optional[str] = Field(None, description="Show description")
+    show_language: Optional[str] = Field(None, description="Show language code")
+    artwork_ext: Optional[str] = Field(
+        None, description="Extension of the stored artwork (.png or .jpg)"
+    )
+    artwork_version: Optional[str] = Field(
+        None, description="Content hash of the artwork; changes with the image"
+    )
+
     @classmethod
     async def ensure_feed_token(cls) -> str:
         """Return the Feed Token, minting and saving one on first use.

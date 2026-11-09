@@ -40,7 +40,7 @@ def client():
 def feed_settings(monkeypatch):
     monkeypatch.setenv("OPEN_NOTEBOOK_PUBLIC_URL", PUBLIC_URL)
     monkeypatch.delenv("API_URL", raising=False)
-    settings = SimpleNamespace(feed_token=TOKEN)
+    settings = SimpleNamespace(feed_token=TOKEN, artwork_ext=None, artwork_version=None)
     with patch.object(
         PodcastFeedSettings, "get_instance", AsyncMock(return_value=settings)
     ):

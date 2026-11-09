@@ -25,6 +25,31 @@ def _itunes(tag: str) -> str:
 
 
 @dataclass(frozen=True)
+class ShowMetadata:
+    """The show-level description of the Podcast Feed (see CONTEXT.md)."""
+
+    title: str = DEFAULT_TITLE
+    author: str = DEFAULT_AUTHOR
+    description: str = DEFAULT_DESCRIPTION
+    language: str = DEFAULT_LANGUAGE
+    artwork_url: Optional[str] = None
+
+    @classmethod
+    def from_settings(
+        cls, settings, artwork_url: Optional[str] = None
+    ) -> "ShowMetadata":
+        """Settings values, with the default wherever one is unset."""
+        return cls(
+            title=getattr(settings, "show_title", None) or DEFAULT_TITLE,
+            author=getattr(settings, "show_author", None) or DEFAULT_AUTHOR,
+            description=getattr(settings, "show_description", None)
+            or DEFAULT_DESCRIPTION,
+            language=getattr(settings, "show_language", None) or DEFAULT_LANGUAGE,
+            artwork_url=artwork_url,
+        )
+
+
+@dataclass(frozen=True)
 class FeedItem:
     """One Published Episode as a feed item."""
 
@@ -72,21 +97,27 @@ def feed_url(base_url: str, token: str) -> str:
 
 
 def build_feed_xml(
-    feed_url: str, base_url: str, items: Optional[list[FeedItem]] = None
+    feed_url: str,
+    base_url: str,
+    items: Optional[list[FeedItem]] = None,
+    show: Optional[ShowMetadata] = None,
 ) -> bytes:
     """Serialise the Podcast Feed: default show info plus one item per episode."""
     rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = DEFAULT_TITLE
+    show = show or ShowMetadata()
+    ET.SubElement(channel, "title").text = show.title
     ET.SubElement(channel, "link").text = base_url
-    ET.SubElement(channel, "description").text = DEFAULT_DESCRIPTION
-    ET.SubElement(channel, "language").text = DEFAULT_LANGUAGE
+    ET.SubElement(channel, "description").text = show.description
+    ET.SubElement(channel, "language").text = show.language
     ET.SubElement(
         channel,
         f"{{{ATOM_NS}}}link",
         {"href": feed_url, "rel": "self", "type": "application/rss+xml"},
     )
-    ET.SubElement(channel, _itunes("author")).text = DEFAULT_AUTHOR
+    ET.SubElement(channel, _itunes("author")).text = show.author
+    if show.artwork_url:
+        ET.SubElement(channel, _itunes("image"), {"href": show.artwork_url})
     # Private feed: keep it out of Apple's public directory.
     ET.SubElement(channel, _itunes("block")).text = "yes"
     for item in items or []:

@@ -15,9 +15,11 @@ from loguru import logger
 
 from open_notebook.domain.podcast_feed import PodcastFeedSettings
 from open_notebook.exceptions import InvalidInputError, NotFoundError
+from open_notebook.podcasts.artwork import current_artwork
 from open_notebook.podcasts.audio_paths import resolve_contained_audio_path
 from open_notebook.podcasts.feed import (
     FeedItem,
+    ShowMetadata,
     build_feed_xml,
     feed_url,
     resolve_public_base_url,
@@ -28,8 +30,8 @@ from open_notebook.podcasts.publishing import PUBLISHABLE_AUDIO_TYPES
 router = APIRouter()
 
 
-async def _require_feed_token(token: str) -> None:
-    """Raise the one uniform 404 unless `token` is the instance's Feed Token.
+async def _require_feed_token(token: str) -> PodcastFeedSettings:
+    """Return the feed settings, or raise the one uniform 404 for a bad `token`.
 
     A wrong token, a missing token and (later) unknown or unpublished episodes
     must be indistinguishable, so nothing can probe for valid values.
@@ -40,6 +42,7 @@ async def _require_feed_token(token: str) -> None:
         token.encode("utf-8"), expected.encode("utf-8")
     ):
         raise NotFoundError("Not found")
+    return settings  # type: ignore[return-value]
 
 
 def _feed_items(episodes: list[PodcastEpisode], base_url: str, token: str):
@@ -84,17 +87,40 @@ def _feed_items(episodes: list[PodcastEpisode], base_url: str, token: str):
 
 @router.api_route("/podcasts/feed/{token}/feed.xml", methods=["GET", "HEAD"])
 async def get_podcast_feed(token: str, request: Request):
-    await _require_feed_token(token)
+    settings = await _require_feed_token(token)
     # Resolved after the token check so a wrong token is always the uniform 404.
     base_url = resolve_public_base_url(
         request.headers.get("x-forwarded-proto"),
         request.headers.get("x-forwarded-host"),
     )
     items = _feed_items(await PodcastEpisode.get_published(), base_url, token)
+    # Never advertise artwork whose file is gone: the feed must not point at nothing.
+    artwork_url = None
+    if current_artwork(settings.artwork_ext):
+        artwork_url = (
+            f"{base_url}/api/podcasts/feed/{token}/artwork{settings.artwork_ext}"
+            f"?v={settings.artwork_version}"
+        )
+    show = ShowMetadata.from_settings(settings, artwork_url)
     return Response(
-        content=build_feed_xml(feed_url(base_url, token), base_url, items),
+        content=build_feed_xml(feed_url(base_url, token), base_url, items, show),
         media_type="application/rss+xml",
     )
+
+
+@router.api_route("/podcasts/feed/{token}/artwork.{ext}", methods=["GET", "HEAD"])
+async def get_podcast_feed_artwork(token: str, ext: str):
+    """Serve the show artwork to a podcast app (token in the path).
+
+    A wrong token, no artwork, an extension other than the stored one and a
+    missing file are all the same uniform 404.
+    """
+    settings = await _require_feed_token(token)
+    found = current_artwork(settings.artwork_ext)
+    if found is None or f".{ext}" != settings.artwork_ext:
+        raise NotFoundError("Not found")
+    path, media_type = found
+    return FileResponse(path, media_type=media_type)
 
 
 async def _published_audio_file(filename: str) -> tuple[Path, str]:

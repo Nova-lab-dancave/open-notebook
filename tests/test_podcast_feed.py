@@ -34,7 +34,7 @@ def client():
 @pytest.fixture
 def feed_settings():
     """Feed settings record holding TOKEN; env has a public HTTPS origin."""
-    settings = SimpleNamespace(feed_token=TOKEN)
+    settings = SimpleNamespace(feed_token=TOKEN, artwork_ext=None, artwork_version=None)
     with patch.object(
         PodcastFeedSettings, "get_instance", AsyncMock(return_value=settings)
     ):
@@ -119,13 +119,21 @@ class TestFeedRejectsWrongToken:
         with patch.object(
             PodcastFeedSettings,
             "get_instance",
-            AsyncMock(return_value=SimpleNamespace(feed_token=None)),
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    feed_token=None, artwork_ext=None, artwork_version=None
+                )
+            ),
         ):
             unconfigured = client.get(FEED_PATH)
         with patch.object(
             PodcastFeedSettings,
             "get_instance",
-            AsyncMock(return_value=SimpleNamespace(feed_token=TOKEN)),
+            AsyncMock(
+                return_value=SimpleNamespace(
+                    feed_token=TOKEN, artwork_ext=None, artwork_version=None
+                )
+            ),
         ):
             wrong = client.get("/api/podcasts/feed/not-the-token/feed.xml")
 
