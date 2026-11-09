@@ -75,10 +75,53 @@ The **Episodes** tab groups episodes into **Currently Processing**, **Queued / P
 Each episode card has:
 - an **audio player** (completed episodes),
 - **Details**, with the episode's **Summary** (profiles and models used), **Outline** and **Transcript**,
+- **Publish** / **Unpublish** (completed episodes), which put the episode in your private podcast feed or take it out; see [Listen in a podcast app](#listen-in-a-podcast-app),
 - **Delete** (removes the episode and its audio file),
 - **Retry** (failed episodes): deletes the failed episode and submits a new job with the same name, content, episode profile and speaker profile, using the profiles' current settings (so you can fix a profile, then retry). The episode's **Additional instructions** are not kept.
 
 Failed episodes show the error. Common errors and fixes are listed in [Podcasts Explained → When Things Go Wrong](../2-CORE-CONCEPTS/podcasts-explained.md#when-things-go-wrong-failures--retry).
+
+---
+
+
+---
+
+## Listen in a podcast app
+
+Published episodes appear in one private podcast feed that you follow by its link in Apple Podcasts (or any podcast app that can add a show by URL). Nothing is public: only people with the link can listen, and nothing is published until you choose to.
+
+### 1. Give the server an HTTPS address
+
+The feed link needs the secure (`https://`) address that podcast apps use to reach this server. If the **Listen in a podcast app** card on the Podcasts page says *HTTPS address needed*, ask whoever runs your server to set `OPEN_NOTEBOOK_PUBLIC_URL` (see [Environment Reference](../5-CONFIGURATION/environment-reference.md)), for example `https://notebook.example.com`, and restart. Many setups already have a suitable `API_URL`, which is used when `OPEN_NOTEBOOK_PUBLIC_URL` is not set.
+
+### 2. Publish an episode
+
+On a completed episode (Podcasts page or a notebook's Podcasts list) choose **Publish**. A short dialog shows the description podcast apps will display, pre-filled from the episode's outline; edit it if you like. Only completed `.mp3` and `.m4a` episodes can be published, and if something is wrong (a missing audio file, for instance) the reason is shown.
+
+Published episodes show **In your feed** and an **Unpublish** button, which takes the episode out of the feed straight away. Apps that already downloaded it keep their copy. To change the description of a published episode, unpublish and publish again; it then shows up as a new episode.
+
+### 3. Add the show in Apple Podcasts
+
+Copy the link from the **Listen in a podcast app** card, then:
+
+- **iPhone or iPad:** Library, the More (…) menu, **Follow a Show by URL**, paste the link, tap **Follow**.
+- **Mac:** File, **Follow a Show by URL**, paste the link, click **Follow**.
+
+The show stays in your own Library and is not added to Apple's public directory. New episodes appear when the app next refreshes the feed.
+
+### 4. Name your show and add cover art
+
+The **About your show** card sets the show title, author, description and language. Blank fields use the defaults. Cover art must be a **square PNG or JPEG between 1400 and 3000 pixels, up to 10 MB**; anything else is refused with the reason.
+
+### Keep the link private
+
+The link contains a secret token and needs no password: anyone who has it can listen to your published episodes (and nothing else in Nova-Notes). If it leaks, choose **Rotate link**. That creates a new link and stops the old one, so every app subscribed with the old link stops updating until you follow the new one.
+
+### If Apple Podcasts cannot load the feed
+
+- The server has to be reachable at the feed's address when the app refreshes. If it is only on a private network (a Tailscale tailnet, for example), the device needs to be able to reach that network at that moment. Check that the link opens in a browser on the same device.
+- If the link opens in a browser but Apple Podcasts still cannot load it, the address may need to be reachable from the public internet; that is a server setup decision, not a setting in Nova-Notes.
+- A link that stopped working after a rotation needs to be followed again.
 
 ---
 
