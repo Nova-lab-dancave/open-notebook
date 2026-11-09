@@ -9,6 +9,8 @@ import {
   PodcastGenerationResponse,
   ScriptPodcastRequest,
   PodcastFeedUrl,
+  PodcastFeedSettings,
+  PodcastFeedSettingsUpdate,
   PublishedEpisodeState,
 } from '@/lib/types/podcasts'
 
@@ -73,6 +75,30 @@ export async function downloadEpisodeAudio(
 }
 
 export const podcastsApi = {
+  getFeedSettings: async () => {
+    const response = await apiClient.get<PodcastFeedSettings>('/podcasts/feed-settings')
+    return response.data
+  },
+
+  updateFeedSettings: async (payload: PodcastFeedSettingsUpdate) => {
+    const response = await apiClient.put<PodcastFeedSettings>('/podcasts/feed-settings', payload)
+    return response.data
+  },
+
+  /** Replace the show artwork; the server checks it is a square PNG/JPEG of 1400-3000 px. */
+  uploadFeedArtwork: async (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    const response = await apiClient.post<PodcastFeedSettings>('/podcasts/feed-settings/artwork', body)
+    return response.data
+  },
+
+  /** The current artwork as an image (the endpoint needs the app password, so no plain <img src>). */
+  getFeedArtwork: async () => {
+    const response = await apiClient.get<Blob>('/podcasts/feed-settings/artwork', { responseType: 'blob' })
+    return response.data
+  },
+
   /** The Podcast Feed URL; rejects with a 422 when the server has no HTTPS address. */
   getFeedUrl: async () => {
     const response = await apiClient.get<PodcastFeedUrl>('/podcasts/feed-url')

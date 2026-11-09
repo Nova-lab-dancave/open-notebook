@@ -11,6 +11,7 @@ import {
   EpisodeProfile,
   EpisodeStatusGroups,
   PodcastEpisode,
+  PodcastFeedSettingsUpdate,
   PodcastGenerationRequest,
   ScriptPodcastRequest,
   groupEpisodesByStatus,
@@ -23,6 +24,74 @@ export function usePodcastFeedUrl() {
     queryFn: podcastsApi.getFeedUrl,
     // A 422 means the server has no HTTPS address; retrying cannot fix that.
     retry: false,
+  })
+}
+
+export function usePodcastFeedSettings() {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedSettings,
+    queryFn: podcastsApi.getFeedSettings,
+    retry: false,
+  })
+}
+
+/** The artwork image; the version in the key refetches it when the image changes. */
+export function usePodcastFeedArtwork(version: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedArtwork(version),
+    queryFn: podcastsApi.getFeedArtwork,
+    enabled,
+    retry: false,
+  })
+}
+
+export function useUpdatePodcastFeedSettings() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (changes: PodcastFeedSettingsUpdate) => podcastsApi.updateFeedSettings(changes),
+    retry: false,
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedSettings, saved)
+      toast({
+        title: t('podcasts.feedSettings.saved'),
+        description: t('podcasts.feedSettings.savedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feedSettings.saveFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUploadPodcastFeedArtwork() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (file: File) => podcastsApi.uploadFeedArtwork(file),
+    retry: false,
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedSettings, saved)
+      toast({
+        title: t('podcasts.feedSettings.artworkUploaded'),
+        description: t('podcasts.feedSettings.artworkUploadedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feedSettings.artworkUploadFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
   })
 }
 

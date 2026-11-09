@@ -215,3 +215,19 @@ export interface PublishedEpisodeState {
   duration_seconds: number | null
   feed_summary: string | null
 }
+
+/** Show-level description of the Podcast Feed, with defaults already applied. */
+export interface PodcastFeedSettings {
+  title: string
+  author: string
+  description: string
+  language: string
+  has_artwork: boolean
+  /** Changes whenever the artwork does (use it as a cache key) */
+  artwork_version?: string | null
+}
+
+/** Fields to change; one left out is kept, a blank one resets to its default. */
+export type PodcastFeedSettingsUpdate = Partial<
+  Pick<PodcastFeedSettings, 'title' | 'author' | 'description' | 'language'>
+>

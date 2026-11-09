@@ -34,6 +34,9 @@ export const QUERY_KEYS = {
   notebookChatSessions: (notebookId: string) => ['notebook-chat', notebookId, 'sessions'] as const,
   notebookChatSession: (sessionId: string) => ['notebook-chat', 'sessions', sessionId] as const,
   podcastFeedUrl: ['podcasts', 'feed-url'] as const,
+  podcastFeedSettings: ['podcasts', 'feed-settings'] as const,
+  podcastFeedArtwork: (version?: string | null) =>
+    ['podcasts', 'feed-settings', 'artwork', version ?? null] as const,
   podcastEpisodes: ['podcasts', 'episodes'] as const,
   podcastEpisode: (episodeId: string) => ['podcasts', 'episodes', episodeId] as const,
   episodeProfiles: ['podcasts', 'episode-profiles'] as const,
