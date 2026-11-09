@@ -17,6 +17,14 @@ vi.mock('@/lib/api/podcasts', () => ({
   downloadEpisodeAudio: (...args: unknown[]) => downloadEpisodeAudio(...(args as [])),
 }))
 
+// The control has its own tests (EpisodePublishControl.test.tsx); here we only
+// check that the card places it.
+vi.mock('@/components/podcasts/EpisodePublishControl', () => ({
+  EpisodePublishControl: ({ episode }: { episode: { id: string } }) => (
+    <div data-testid="publish-control">{episode.id}</div>
+  ),
+}))
+
 function makeEpisode(overrides: Partial<PodcastEpisode> = {}): PodcastEpisode {
   return {
     id: 'episode:1',
@@ -172,5 +180,13 @@ describe('EpisodeCard download', () => {
     render(<EpisodeCard episode={episode} onDelete={vi.fn()} />)
     fireEvent.click(screen.getByText('common.download'))
     expect(downloadEpisodeAudio).toHaveBeenCalledWith(episode)
+  })
+})
+
+describe('EpisodeCard publishing', () => {
+  it('places the publish control for its episode', () => {
+    render(<EpisodeCard episode={makeEpisode({ id: 'episode:7' })} onDelete={vi.fn()} />)
+
+    expect(screen.getByTestId('publish-control')).toHaveTextContent('episode:7')
   })
 })
