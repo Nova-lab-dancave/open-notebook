@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from loguru import logger
 from pydantic import BaseModel
@@ -12,9 +13,12 @@ from api.podcast_service import (
     ScriptPodcastRequest,
 )
 from open_notebook.ai.models import Model
+from open_notebook.domain.podcast_feed import PodcastFeedSettings
 from open_notebook.exceptions import OpenNotebookError
 from open_notebook.podcasts.audio_paths import resolve_contained_audio_path
+from open_notebook.podcasts.feed import feed_url, resolve_public_base_url
 from open_notebook.podcasts.models import PodcastEpisode
+from open_notebook.podcasts.publishing import publish_episode, unpublish_episode
 
 router = APIRouter()
 
@@ -122,6 +126,14 @@ class PodcastEpisodeResponse(BaseModel):
     error_message: Optional[str] = None
     notebook_id: Optional[str] = None
     progress: Optional[int] = None
+    # Podcast Feed publication state (None = not a Published Episode)
+    published_at: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    feed_summary: Optional[str] = None
+
+
+def _iso(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
 
 
 def _effective_progress(
@@ -287,6 +299,9 @@ async def list_podcast_episodes(notebook_id: Optional[str] = None):
                     error_message=error_message,
                     notebook_id=str(episode.notebook) if episode.notebook else None,
                     progress=_effective_progress(job_status, episode.progress),
+                    published_at=_iso(episode.published_at),
+                    duration_seconds=episode.duration_seconds,
+                    feed_summary=episode.feed_summary,
                 )
             )
 
@@ -351,6 +366,9 @@ async def get_podcast_episode(episode_id: str):
             error_message=error_message,
             notebook_id=str(episode.notebook) if episode.notebook else None,
             progress=_effective_progress(job_status, episode.progress),
+            published_at=_iso(episode.published_at),
+            duration_seconds=episode.duration_seconds,
+            feed_summary=episode.feed_summary,
         )
 
     except HTTPException:
@@ -394,6 +412,100 @@ async def stream_podcast_episode_audio(episode_id: str):
         media_type="audio/mpeg",
         filename=audio_path.name,
     )
+
+
+class PublishEpisodeRequest(BaseModel):
+    summary: Optional[str] = None
+
+
+class PublishEpisodeResponse(BaseModel):
+    published_at: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    feed_summary: Optional[str] = None
+
+
+@router.post(
+    "/podcasts/episodes/{episode_id}/publish", response_model=PublishEpisodeResponse
+)
+async def publish_podcast_episode(
+    episode_id: str, request: Optional[PublishEpisodeRequest] = None
+):
+    """Put a completed episode in the Podcast Feed (idempotent)."""
+    try:
+        episode = await PodcastService.get_episode(episode_id)
+        await publish_episode(episode, request.summary if request else None)
+        return PublishEpisodeResponse(
+            published_at=_iso(episode.published_at),
+            duration_seconds=episode.duration_seconds,
+            feed_summary=episode.feed_summary,
+        )
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error publishing podcast episode {episode_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to publish episode")
+
+
+@router.post("/podcasts/episodes/{episode_id}/unpublish")
+async def unpublish_podcast_episode(episode_id: str):
+    """Take an episode out of the Podcast Feed (no-op if it is not published)."""
+    try:
+        episode = await PodcastService.get_episode(episode_id)
+        await unpublish_episode(episode)
+        return {"published_at": None}
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error unpublishing podcast episode {episode_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to unpublish episode")
+
+
+class FeedUrlResponse(BaseModel):
+    feed_url: str
+
+
+def _public_base_url(request: Request) -> str:
+    return resolve_public_base_url(
+        request.headers.get("x-forwarded-proto"),
+        request.headers.get("x-forwarded-host"),
+    )
+
+
+@router.get("/podcasts/feed-url", response_model=FeedUrlResponse)
+async def get_podcast_feed_url(request: Request):
+    """The Podcast Feed URL to paste into a podcast app (contains the Feed Token)."""
+    try:
+        base_url = _public_base_url(request)
+        token = await PodcastFeedSettings.ensure_feed_token()
+        return FeedUrlResponse(feed_url=feed_url(base_url, token))
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error building the podcast feed URL: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get the feed URL")
+
+
+@router.post("/podcasts/feed-token/rotate", response_model=FeedUrlResponse)
+async def rotate_podcast_feed_token(request: Request):
+    """Replace the Feed Token; existing subscriptions stop working."""
+    try:
+        # Resolve the base URL first: never rotate when no usable URL exists.
+        base_url = _public_base_url(request)
+        token = await PodcastFeedSettings.rotate_feed_token()
+        return FeedUrlResponse(feed_url=feed_url(base_url, token))
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error rotating the podcast feed token: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to rotate the feed token")
 
 
 @router.post("/podcasts/episodes/{episode_id}/retry")

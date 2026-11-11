@@ -8,6 +8,10 @@ import {
   PodcastGenerationRequest,
   PodcastGenerationResponse,
   ScriptPodcastRequest,
+  PodcastFeedUrl,
+  PodcastFeedSettings,
+  PodcastFeedSettingsUpdate,
+  PublishedEpisodeState,
 } from '@/lib/types/podcasts'
 
 export type EpisodeProfileInput = Omit<EpisodeProfile, 'id'>
@@ -71,11 +75,64 @@ export async function downloadEpisodeAudio(
 }
 
 export const podcastsApi = {
+  getFeedSettings: async () => {
+    const response = await apiClient.get<PodcastFeedSettings>('/podcasts/feed-settings')
+    return response.data
+  },
+
+  updateFeedSettings: async (payload: PodcastFeedSettingsUpdate) => {
+    const response = await apiClient.put<PodcastFeedSettings>('/podcasts/feed-settings', payload)
+    return response.data
+  },
+
+  /** Replace the show artwork; the server checks it is a square PNG/JPEG of 1400-3000 px. */
+  uploadFeedArtwork: async (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    const response = await apiClient.post<PodcastFeedSettings>('/podcasts/feed-settings/artwork', body)
+    return response.data
+  },
+
+  /** The current artwork as an image (the endpoint needs the app password, so no plain <img src>). */
+  getFeedArtwork: async () => {
+    const response = await apiClient.get<Blob>('/podcasts/feed-settings/artwork', { responseType: 'blob' })
+    return response.data
+  },
+
+  /** The Podcast Feed URL; rejects with a 422 when the server has no HTTPS address. */
+  getFeedUrl: async () => {
+    const response = await apiClient.get<PodcastFeedUrl>('/podcasts/feed-url')
+    return response.data
+  },
+
+  /** Replace the Feed Token. Every existing subscription stops working. */
+  rotateFeedToken: async () => {
+    const response = await apiClient.post<PodcastFeedUrl>('/podcasts/feed-token/rotate')
+    return response.data
+  },
+
   listEpisodes: async (params?: { notebook_id?: string }) => {
     const response = await apiClient.get<PodcastEpisode[]>('/podcasts/episodes', {
       params: params?.notebook_id ? { notebook_id: params.notebook_id } : undefined,
     })
     return response.data
+  },
+
+  /**
+   * Put a completed episode in the Podcast Feed. Without a summary the server
+   * uses an excerpt of the outline; republishing keeps the original publish time.
+   */
+  publishEpisode: async (episodeId: string, summary?: string) => {
+    const response = await apiClient.post<PublishedEpisodeState>(
+      `/podcasts/episodes/${episodeId}/publish`,
+      summary === undefined ? {} : { summary }
+    )
+    return response.data
+  },
+
+  /** Take an episode out of the Podcast Feed (a no-op if it is not in it). */
+  unpublishEpisode: async (episodeId: string) => {
+    await apiClient.post(`/podcasts/episodes/${episodeId}/unpublish`)
   },
 
   deleteEpisode: async (episodeId: string) => {

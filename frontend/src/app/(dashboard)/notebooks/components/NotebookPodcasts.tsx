@@ -7,6 +7,7 @@ import { Mic, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EpisodeProgress, isEpisodeInProgress } from '@/components/podcasts/EpisodeProgress'
+import { EpisodePublishControl } from '@/components/podcasts/EpisodePublishControl'
 import { GeneratePodcastDialog } from '@/components/podcasts/GeneratePodcastDialog'
 import { EpisodePlayButton } from '@/components/player/EpisodePlayButton'
 import { usePodcastEpisodes } from '@/lib/hooks/use-podcasts'
@@ -60,6 +61,8 @@ function NotebookEpisodeItem({ episode }: { episode: PodcastEpisode }) {
           }}
         />
       ) : null}
+
+      <EpisodePublishControl episode={episode} />
     </div>
   )
 }

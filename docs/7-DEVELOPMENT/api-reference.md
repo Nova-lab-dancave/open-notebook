@@ -52,7 +52,8 @@ Use `/docs` for request and response shapes. This map shows where things are:
 | Transformations | `/api/transformations`, `/api/transformations/execute`, `/api/transformations/default-prompt` |
 | Models and providers | `/api/models`, `/api/models/defaults`, `/api/models/sync`, `/api/models/auto-assign`, `/api/providers` |
 | Credentials | `/api/credentials`, `/api/credentials/{id}/test`, `/api/credentials/{id}/discover`, `/api/credentials/{id}/register-models`, `/api/credentials/migrate-*` |
-| Podcasts | `/api/podcasts/generate`, `/api/podcasts/episodes`, `/api/episode-profiles`, `/api/speaker-profiles` |
+| Podcasts | `/api/podcasts/generate`, `/api/podcasts/episodes` (incl. `/publish`, `/unpublish`), `/api/podcasts/feed-url`, `/api/podcasts/feed-token/rotate`, `/api/podcasts/feed-settings`, `/api/episode-profiles`, `/api/speaker-profiles` |
+| Podcast Feed (token in the path, no password) | `/api/podcasts/feed/{token}/feed.xml`, `/episodes/{id}.{mp3,m4a}`, `/artwork.{png,jpg}` (see [podcasts.md](podcasts.md#podcast-feed)) |
 | Background jobs | `/api/commands/jobs`, `/api/commands/jobs/{job_id}` |
 | Embeddings | `/api/embed`, `/api/embeddings/rebuild` |
 | Settings and config | `/api/settings`, `/api/config`, `/api/capabilities`, `/api/languages`, `/api/auth/status` |

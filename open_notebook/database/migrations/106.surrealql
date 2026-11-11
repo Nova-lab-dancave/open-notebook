@@ -1,0 +1,9 @@
+-- Nova-Notes migration 106: Podcast Feed publication state on episodes (#31, spec #37).
+-- `episode` is SCHEMAFULL, so every new field has to be declared.
+-- `published_at` NONE means the episode is not in the Podcast Feed; setting it publishes
+-- the episode and doubles as the feed item's pubDate. `duration_seconds` is read from the
+-- audio file when publishing; `feed_summary` is the episode description shown in podcast apps.
+DEFINE FIELD IF NOT EXISTS published_at ON TABLE episode TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS duration_seconds ON TABLE episode TYPE option<int>
+    ASSERT $value = NONE OR $value >= 0;
+DEFINE FIELD IF NOT EXISTS feed_summary ON TABLE episode TYPE option<string>;

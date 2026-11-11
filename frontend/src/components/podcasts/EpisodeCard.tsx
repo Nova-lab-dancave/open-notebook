@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 import { EpisodePlayButton } from '@/components/player/EpisodePlayButton'
 import { EpisodeProgress } from '@/components/podcasts/EpisodeProgress'
+import { EpisodePublishControl } from '@/components/podcasts/EpisodePublishControl'
 import { downloadEpisodeAudio } from '@/lib/api/podcasts'
 import { EpisodeStatus, FAILED_EPISODE_STATUSES, PodcastEpisode } from '@/lib/types/podcasts'
 import { cn } from '@/lib/utils'
@@ -396,6 +397,7 @@ export function EpisodeCard({ episode, onDelete, deleting, onRetry, retrying }: 
                 {downloading ? t('podcasts.downloading') : t('common.download')}
               </Button>
             ) : null}
+            <EpisodePublishControl episode={episode} />
             {isFailed && onRetry ? (
               <Button
                 variant="outline"

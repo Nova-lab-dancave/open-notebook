@@ -92,6 +92,11 @@ export interface PodcastEpisode {
   /** Generation progress 0-100 (null when unknown) */
   progress?: number | null
   error_message?: string | null
+  /** When the episode was put in the Podcast Feed; null/absent = not published */
+  published_at?: string | null
+  duration_seconds?: number | null
+  /** Episode description shown in podcast apps (set when published) */
+  feed_summary?: string | null
 }
 
 export interface PodcastGenerationRequest {
@@ -198,3 +203,31 @@ export function needsModelSetup(profile: EpisodeProfile | SpeakerProfile): boole
   const sp = profile as SpeakerProfile
   return !sp.voice_model
 }
+
+/** The Podcast Feed URL to paste into a podcast app (it contains the Feed Token). */
+export interface PodcastFeedUrl {
+  feed_url: string
+}
+
+/** What publishing an episode returns. */
+export interface PublishedEpisodeState {
+  published_at: string | null
+  duration_seconds: number | null
+  feed_summary: string | null
+}
+
+/** Show-level description of the Podcast Feed, with defaults already applied. */
+export interface PodcastFeedSettings {
+  title: string
+  author: string
+  description: string
+  language: string
+  has_artwork: boolean
+  /** Changes whenever the artwork does (use it as a cache key) */
+  artwork_version?: string | null
+}
+
+/** Fields to change; one left out is kept, a blank one resets to its default. */
+export type PodcastFeedSettingsUpdate = Partial<
+  Pick<PodcastFeedSettings, 'title' | 'author' | 'description' | 'language'>
+>

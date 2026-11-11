@@ -11,6 +11,7 @@ from open_notebook.utils.proxy import ensure_internal_no_proxy
 ensure_internal_no_proxy()
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -21,6 +22,7 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.auth import PasswordAuthMiddleware
+from api.logging_filters import RedactFeedToken
 from api.middleware import MaxBodySizeMiddleware, get_max_upload_size_bytes
 from api.routers import (
     auth,
@@ -40,6 +42,8 @@ from api.routers import (
     models,
     notebooks,
     notes,
+    podcast_feed,
+    podcast_feed_settings,
     podcasts,
     providers,
     search,
@@ -52,6 +56,7 @@ from api.routers import (
 )
 from api.routers import commands as commands_router
 from open_notebook.database.async_migrate import AsyncMigrationManager
+from open_notebook.domain.podcast_feed import PodcastFeedSettings
 from open_notebook.exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -185,6 +190,9 @@ async def _run_database_migrations() -> None:
         logger.info("Database is already at the latest version. No migrations needed.")
 
 
+_REDACT_FEED_TOKEN = RedactFeedToken()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -193,6 +201,10 @@ async def lifespan(app: FastAPI):
     """
     # Startup: Security checks
     logger.info("Starting API initialization...")
+
+    # Keep the Feed Token out of uvicorn's access log. Adding the same filter
+    # instance again (reload, repeated startups) is a no-op.
+    logging.getLogger("uvicorn.access").addFilter(_REDACT_FEED_TOKEN)
 
     # Security check: Encryption key
     if not get_secret_from_env("OPEN_NOTEBOOK_ENCRYPTION_KEY"):
@@ -211,6 +223,9 @@ async def lifespan(app: FastAPI):
         logger.exception(e)
         # Fail fast - don't start the API with an outdated database schema
         raise RuntimeError(f"Failed to run database migrations: {str(e)}") from e
+
+    # Mint the Podcast Feed's Feed Token once (idempotent; never logged).
+    await PodcastFeedSettings.ensure_feed_token()
 
     logger.success("API initialization completed successfully")
 
@@ -250,6 +265,9 @@ app.add_middleware(
         "/api/auth/status",
         "/api/config",
     ],
+    # The Podcast Feed authenticates itself with the Feed Token in the path
+    # (ADR-0XX-podcast-feed-token-auth). Add nothing else here without a token check.
+    excluded_prefixes=["/api/podcasts/feed/"],
 )
 
 # Reject oversized request bodies before they reach auth or routing - added
@@ -406,6 +424,10 @@ app.include_router(sources.router, prefix="/api", tags=["sources"])
 app.include_router(insights.router, prefix="/api", tags=["insights"])
 app.include_router(commands_router.router, prefix="/api", tags=["commands"])
 app.include_router(podcasts.router, prefix="/api", tags=["podcasts"])
+app.include_router(podcast_feed.router, prefix="/api", tags=["podcast-feed"])
+app.include_router(
+    podcast_feed_settings.router, prefix="/api", tags=["podcast-feed-settings"]
+)
 app.include_router(episode_profiles.router, prefix="/api", tags=["episode-profiles"])
 app.include_router(speaker_profiles.router, prefix="/api", tags=["speaker-profiles"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])

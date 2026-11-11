@@ -5,17 +5,121 @@ import { podcastsApi, EpisodeProfileInput, SpeakerProfileInput } from '@/lib/api
 import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { getApiErrorKey } from '@/lib/utils/error-handler'
+import { getApiErrorKey, getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   ACTIVE_EPISODE_STATUSES,
   EpisodeProfile,
   EpisodeStatusGroups,
   PodcastEpisode,
+  PodcastFeedSettingsUpdate,
   PodcastGenerationRequest,
   ScriptPodcastRequest,
   groupEpisodesByStatus,
   speakerUsageMap,
 } from '@/lib/types/podcasts'
+
+export function usePodcastFeedUrl() {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedUrl,
+    queryFn: podcastsApi.getFeedUrl,
+    // A 422 means the server has no HTTPS address; retrying cannot fix that.
+    retry: false,
+  })
+}
+
+export function usePodcastFeedSettings() {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedSettings,
+    queryFn: podcastsApi.getFeedSettings,
+    retry: false,
+  })
+}
+
+/** The artwork image; the version in the key refetches it when the image changes. */
+export function usePodcastFeedArtwork(version: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: QUERY_KEYS.podcastFeedArtwork(version),
+    queryFn: podcastsApi.getFeedArtwork,
+    enabled,
+    retry: false,
+  })
+}
+
+export function useUpdatePodcastFeedSettings() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (changes: PodcastFeedSettingsUpdate) => podcastsApi.updateFeedSettings(changes),
+    retry: false,
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedSettings, saved)
+      toast({
+        title: t('podcasts.feedSettings.saved'),
+        description: t('podcasts.feedSettings.savedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feedSettings.saveFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUploadPodcastFeedArtwork() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (file: File) => podcastsApi.uploadFeedArtwork(file),
+    retry: false,
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedSettings, saved)
+      toast({
+        title: t('podcasts.feedSettings.artworkUploaded'),
+        description: t('podcasts.feedSettings.artworkUploadedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feedSettings.artworkUploadFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useRotatePodcastFeedToken() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: () => podcastsApi.rotateFeedToken(),
+    // A retried rotation could succeed twice and strand the URL the user copied.
+    retry: false,
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEYS.podcastFeedUrl, data)
+      toast({
+        title: t('podcasts.feed.rotated'),
+        description: t('podcasts.feed.rotatedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.rotateFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
 
 export function useLanguages() {
   return useQuery({
@@ -115,6 +219,59 @@ export function useRetryPodcastEpisode() {
       toast({
         title: t('podcasts.failedToRetry'),
         description: getApiErrorKey(error, t('common.error')),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function usePublishPodcastEpisode() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({ episodeId, summary }: { episodeId: string; summary?: string }) =>
+      podcastsApi.publishEpisode(episodeId, summary),
+    // A refusal (not completed, unsupported format, ...) will not change on a
+    // retry; the reason is shown once.
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.podcastEpisodes })
+      toast({
+        title: t('podcasts.feed.published'),
+        description: t('podcasts.feed.publishedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.publishFailed'),
+        description: getApiErrorMessage(error, t),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useUnpublishPodcastEpisode() {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (episodeId: string) => podcastsApi.unpublishEpisode(episodeId),
+    retry: false,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.podcastEpisodes })
+      toast({
+        title: t('podcasts.feed.unpublished'),
+        description: t('podcasts.feed.unpublishedDesc'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('podcasts.feed.unpublishFailed'),
+        description: getApiErrorMessage(error, t),
         variant: 'destructive',
       })
     },

@@ -13,6 +13,11 @@ vi.mock('@/lib/hooks/use-podcasts', () => ({
 vi.mock('@/components/podcasts/GeneratePodcastDialog', () => ({
   GeneratePodcastDialog: () => null,
 }))
+vi.mock('@/components/podcasts/EpisodePublishControl', () => ({
+  EpisodePublishControl: ({ episode }: { episode: { id: string } }) => (
+    <div data-testid="publish-control">{episode.id}</div>
+  ),
+}))
 
 function ep(overrides: Partial<PodcastEpisode>): PodcastEpisode {
   return {
@@ -62,5 +67,18 @@ describe('NotebookPodcasts', () => {
     expect(state.episode).toMatchObject({ id: 'episode:2', notebookId: 'notebook:1' })
     expect(state.isPlaying).toBe(true)
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument()
+  })
+
+  it('places a publish control on every episode in the list', () => {
+    episodes = [
+      ep({ id: 'episode:1', name: 'Running ep', job_status: 'running' }),
+      ep({ id: 'episode:2', name: 'Done ep', job_status: 'completed', audio_url: '/a/2' }),
+    ]
+    render(<NotebookPodcasts notebookId="notebook:1" />)
+
+    expect(screen.getAllByTestId('publish-control').map((el) => el.textContent)).toEqual([
+      'episode:1',
+      'episode:2',
+    ])
   })
 })

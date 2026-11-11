@@ -47,3 +47,17 @@ Or all at once: `make start-all` (status: `make status`, stop: `make stop-all`).
 | Decision log (ADRs/PDRs) | [docs/7-DEVELOPMENT/decisions/](docs/7-DEVELOPMENT/decisions/) |
 | Contribution process (Discussions → Issues → PRs) | [docs/7-DEVELOPMENT/contributing.md](docs/7-DEVELOPMENT/contributing.md) |
 | User/operator docs (install, configure, troubleshoot) | [docs/](docs/index.md) |
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on Nova-lab-dancave/open-notebook (`gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md`; ADRs live in `docs/7-DEVELOPMENT/decisions/`. See `docs/agents/domain.md`.

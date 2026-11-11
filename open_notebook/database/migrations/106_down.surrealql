@@ -1,0 +1,4 @@
+-- Reverses 106: drops the publication state (published episodes drop out of the feed).
+REMOVE FIELD IF EXISTS feed_summary ON TABLE episode;
+REMOVE FIELD IF EXISTS duration_seconds ON TABLE episode;
+REMOVE FIELD IF EXISTS published_at ON TABLE episode;
