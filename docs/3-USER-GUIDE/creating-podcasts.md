@@ -98,7 +98,7 @@ The feed link needs the secure (`https://`) address that podcast apps use to rea
 
 On a completed episode (Podcasts page or a notebook's Podcasts list) choose **Publish**. A short dialog shows the description podcast apps will display, pre-filled from the episode's outline; edit it if you like. Only completed `.mp3` and `.m4a` episodes can be published, and if something is wrong (a missing audio file, for instance) the reason is shown.
 
-Published episodes show **In your feed** and an **Unpublish** button, which takes the episode out of the feed straight away. Apps that already downloaded it keep their copy, and Apple Podcasts may keep listing it in the show for a while even after it has fetched the updated feed (in testing, an unpublished episode stayed in the list for several minutes). To change the description of a published episode, unpublish and publish again. It keeps its identity in podcast apps (an app that already knew it remembers your play position) but gets a new publish date.
+Published episodes show **In your feed** and an **Unpublish** button, which takes the episode out of the feed straight away. Unpublishing does not remove the episode from apps that already have it: Apple Podcasts keeps it in your Library even after it has fetched the updated feed (in testing it stayed listed). **After unpublishing, remove the episode by hand in Apple Podcasts** (delete the episode, or unfollow the show). To change the description of a published episode, unpublish and publish again. It keeps its identity in podcast apps (an app that already knew it remembers your play position) but gets a new publish date.
 
 ### 3. Add the show in Apple Podcasts
 
