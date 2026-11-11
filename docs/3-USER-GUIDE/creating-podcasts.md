@@ -98,7 +98,7 @@ The feed link needs the secure (`https://`) address that podcast apps use to rea
 
 On a completed episode (Podcasts page or a notebook's Podcasts list) choose **Publish**. A short dialog shows the description podcast apps will display, pre-filled from the episode's outline; edit it if you like. Only completed `.mp3` and `.m4a` episodes can be published, and if something is wrong (a missing audio file, for instance) the reason is shown.
 
-Published episodes show **In your feed** and an **Unpublish** button, which takes the episode out of the feed straight away. Apps that already downloaded it keep their copy. To change the description of a published episode, unpublish and publish again; it then shows up as a new episode.
+Published episodes show **In your feed** and an **Unpublish** button, which takes the episode out of the feed straight away. Apps that already downloaded it keep their copy, and Apple Podcasts may keep listing it in the show for a while even after it has fetched the updated feed (in testing, an unpublished episode stayed in the list for several minutes). To change the description of a published episode, unpublish and publish again. It keeps its identity in podcast apps (an app that already knew it remembers your play position) but gets a new publish date.
 
 ### 3. Add the show in Apple Podcasts
 
@@ -107,7 +107,7 @@ Copy the link from the **Listen in a podcast app** card, then:
 - **iPhone or iPad:** Library, the More (…) menu, **Follow a Show by URL**, paste the link, tap **Follow**.
 - **Mac:** File, **Follow a Show by URL**, paste the link, click **Follow**.
 
-The show stays in your own Library and is not added to Apple's public directory. New episodes appear when the app next refreshes the feed.
+Publish at least one episode first: Apple Podcasts does not find a feed with no episodes in it, so following a feed whose episodes have all been unpublished fails until one is published again. The show stays in your own Library and is not added to Apple's public directory. New episodes appear when the app next refreshes the feed.
 
 ### 4. Name your show and add cover art
 
@@ -122,6 +122,7 @@ The link contains a secret token and needs no password: anyone who has it can li
 - The server has to be reachable at the feed's address when the app refreshes. If it is only on a private network (a Tailscale tailnet, for example), the device needs to be able to reach that network at that moment. Check that the link opens in a browser on the same device.
 - If the link opens in a browser but Apple Podcasts still cannot load it, the address may need to be reachable from the public internet; that is a server setup decision, not a setting in Nova-Notes.
 - A link that stopped working after a rotation needs to be followed again.
+- Following the link fails with a feed that has no published episodes. Publish an episode and try again.
 
 ---
 
